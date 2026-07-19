@@ -1,0 +1,62 @@
+{
+  "name": "aws-cdk-nestjs-archetype-template",
+  "version": "1.0.0",
+  "description": "AWS CDK Archetype Template",
+  "engines": {
+    "node": ">=22.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "packageManager": "pnpm@11.14.0",
+  "scripts": {
+    "prebuild": "tsc",
+    "build": "ts-node prepareBuild.ts",
+    "postbuild": "cd app && pnpm run pack age:install",
+    "postinstall": "pnpm run build",
+    "preinstall": "npx only-allow pnpm",
+    "tsc": "tsc",
+    "tsc:watch": "tsc --watch",
+    "start:local": "node --watch -r ts-node/register server-local/server.local.ts",
+    "server:local": "pnpm start:local",
+    "infra:synth": "pnpm --filter arq-impl-cdk synth",
+    "infra:deploy": "pnpm --filter arq-impl-cdk deploy",
+    "infra:diff": "pnpm --filter arq-impl-cdk diff",
+    "infra:destroy": "pnpm --filter arq-impl-cdk destroy",
+    "format": "prettier --write \"**/*.{ts,js,json,md,yml,yaml}\"",
+    "format:check": "prettier --check \"**/*.{ts,js,json,md,yml,yaml}\"",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^20.5.3",
+    "@commitlint/config-conventional": "^20.5.3",
+    "@types/aws-lambda": "^8.10.141",
+    "@types/express": "^5.0.6",
+    "@types/fs-extra": "^11.0.4",
+    "@types/node": "^20.10.4",
+    "cross-env": "^7.0.3",
+    "prettier": "^3.3.2",
+    "eslint": "^9.5.0",
+    "eslint-config-prettier": "^9.1.0",
+    "typescript-eslint": "^8.0.0",
+    "@eslint/js": "^9.5.0",
+    "fs-extra": "^11.2.0",
+    "husky": "^9.1.7",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.609.0",
+    "@aws-sdk/client-secrets-manager": "^3.609.0",
+    "@aws-sdk/client-sfn": "^3.609.0",
+    "@aws-sdk/client-ssm": "^3.609.0",
+    "aws-lambda": "^1.0.7",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "@nestjs/common": "11.1.21",
+    "@nestjs/core": "11.1.21",
+    "@middy/core": "4.5.5",
+    "reflect-metadata": "0.1.14",
+    "rxjs": "^7.8.1"
+  }
+}

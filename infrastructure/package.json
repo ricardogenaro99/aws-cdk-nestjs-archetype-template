@@ -1,0 +1,33 @@
+{
+  "name": "arq-impl-cdk",
+  "version": "1.0.0",
+  "main": "lib/index.js",
+  "scripts": {
+    "check": "tsc",
+    "prebuild": "cd .. && pnpm run build",
+    "build": "tsc",
+    "tsc": "tsc",
+    "synth": "cdk synth",
+    "deploy": "cdk deploy",
+    "diff": "cdk diff",
+    "destroy": "cdk destroy"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.9",
+    "cross-env": "^7.0.3",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.5.2"
+  },
+  "dependencies": {
+    "aws-cdk": "^2.147.1",
+    "aws-cdk-lib": "^2.147.1",
+    "constructs": "^10.3.0",
+    "dotenv": "^16.4.7"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "aws-sdk",
+      "esbuild"
+    ]
+  }
+}

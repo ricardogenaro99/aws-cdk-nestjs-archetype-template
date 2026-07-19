@@ -1,0 +1,9 @@
+node_modules/
+app/
+cdk.out/
+dist/
+coverage/
+pnpm-lock.yaml
+pnpm-workspace.yaml
+.husky/
+.gemini/
