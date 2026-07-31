@@ -2,6 +2,10 @@
   "name": "aws-cdk-nestjs-archetype-template",
   "version": "1.0.0",
   "description": "AWS CDK Archetype Template",
+  "author": {
+    "name": "Ricardo Genaro",
+    "url": "https://github.com/ricardogenaro99"
+  },
   "engines": {
     "node": ">=22.0.0",
     "pnpm": ">=9.0.0"
@@ -10,7 +14,7 @@
   "scripts": {
     "prebuild": "tsc",
     "build": "ts-node prepareBuild.ts",
-    "postbuild": "cd app && pnpm run pack age:install",
+    "postbuild": "cd app && pnpm run package:install",
     "postinstall": "pnpm run build",
     "preinstall": "npx only-allow pnpm",
     "tsc": "tsc",

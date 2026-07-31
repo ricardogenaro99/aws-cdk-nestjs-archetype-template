@@ -176,7 +176,7 @@ const eventSourceMiddleware = (options: EventSourceMiddlewareOptions = {}): Midd
             msg: 'onError - error inspect',
             errorInspect: inspect(handler.error, { showHidden: true, depth: null }),
           });
-        } catch (e) {
+        } catch {
           logger.debug('onError - error inspect failed');
         }
 
@@ -192,7 +192,7 @@ const eventSourceMiddleware = (options: EventSourceMiddlewareOptions = {}): Midd
           } else {
             logger.debug({ msg: 'onError - unhandled error type', type: typeof handler.error });
           }
-        } catch (e) {
+        } catch {
           logger.debug('onError - additional error inspection failed');
         }
 

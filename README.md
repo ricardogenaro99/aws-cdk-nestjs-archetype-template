@@ -20,6 +20,8 @@ Antes de comenzar, asegúrate de tener instalado en tu máquina:
 
 ## 🛠️ Arquitectura del Proyecto
 
+Para una explicación detallada de los principios de diseño, la integración de NestJS con Lambda y la gobernanza de CDK, consulta el documento de [Arquitectura y Diseño Técnico](ARCHITECTURE.md).
+
 El proyecto está dividido en dos partes principales:
 
 1. **`src/`**: Contiene el código fuente de la lógica de negocio y controladores del microservicio bajo principios de **Clean Architecture** (Dominio → Aplicación → Infraestructura).
@@ -141,6 +143,7 @@ pnpm install
 
 > [!NOTE]
 > Al finalizar la instalación, se ejecutará automáticamente el hook `postinstall` (`pnpm run build`), el cual:
+>
 > 1. **`prebuild`**: Compila todos los TypeScript de `src/` vía `tsc`.
 > 2. **`build`**: Ejecuta `prepareBuild.ts` para generar la carpeta `/app` con el `package.json` de producción y el `.npmrc`.
 > 3. **`postbuild`**: Entra a `/app` y ejecuta `pnpm run package:install` para instalar únicamente las dependencias de producción.
@@ -221,15 +224,15 @@ Invocación Lambda
 
 El `eventSourceMiddleware` detecta y normaliza automáticamente los siguientes orígenes:
 
-| Fuente             | Detección                              | Payload resultante                                  |
-|--------------------|----------------------------------------|-----------------------------------------------------|
-| **API Gateway**    | `httpMethod` / `action` / `origin`    | `{ body, pathParameters, query, headers, path, method, action }` |
-| **S3**             | `Records[0].eventSource === 'aws:s3'` | `[{ bucket, key, eventName }]`                      |
-| **SNS**            | `Records[0].EventSource === 'aws:sns'`| `[{ message, messageAttributes }]`                  |
-| **SQS**            | `Records[0].eventSource === 'aws:sqs'`| `[{ messageId, body, attributes }]`                 |
-| **EventBridge**    | `detail-type` presente                | `event.detail` (objeto completo)                    |
-| **Step Functions** | Fallback general                      | `{ action, payload }`                               |
-| **Lambda Directo** | `action` presente                     | `{ action, payload }`                               |
+| Fuente             | Detección                              | Payload resultante                                               |
+| ------------------ | -------------------------------------- | ---------------------------------------------------------------- |
+| **API Gateway**    | `httpMethod` / `action` / `origin`     | `{ body, pathParameters, query, headers, path, method, action }` |
+| **S3**             | `Records[0].eventSource === 'aws:s3'`  | `[{ bucket, key, eventName }]`                                   |
+| **SNS**            | `Records[0].EventSource === 'aws:sns'` | `[{ message, messageAttributes }]`                               |
+| **SQS**            | `Records[0].eventSource === 'aws:sqs'` | `[{ messageId, body, attributes }]`                              |
+| **EventBridge**    | `detail-type` presente                 | `event.detail` (objeto completo)                                 |
+| **Step Functions** | Fallback general                       | `{ action, payload }`                                            |
+| **Lambda Directo** | `action` presente                      | `{ action, payload }`                                            |
 
 ---
 
@@ -238,15 +241,15 @@ El `eventSourceMiddleware` detecta y normaliza automáticamente los siguientes o
 > [!IMPORTANT]
 > Es **MANDATORIO** usar estos constructores en lugar de las clases nativas de `aws-cdk-lib`. Se importan desde `infrastructure/lib/index.ts`.
 
-| Constructor              | Reemplaza                       | Descripción                                                          |
-|--------------------------|---------------------------------|----------------------------------------------------------------------|
-| `TemplateBucket`         | `s3.Bucket`                     | S3 Bucket con SSL forzado, encriptación y bloqueo de acceso público  |
-| `TemplateTable`          | `dynamodb.Table`                | DynamoDB Table con `PAY_PER_REQUEST`, encriptación y PITR en PROD    |
-| `TemplateStringParameter`| `ssm.StringParameter`           | Parámetro SSM con ruta prefijada `/${repoAbrev}/${stage}/...`        |
-| `TemplateSecret`         | `secretsmanager.Secret`         | Secret con prefijo corporativo en el nombre                          |
-| `TemplateLambdaFunction` | `lambda.Function`               | Lambda con retención de logs configurada por entorno y naming estándar|
-| `TemplateStateMachine`   | `sfn.StateMachine`              | State Machine con naming estándar corporativo                        |
-| `TemplateRestApi`        | `apigateway.RestApi`            | API Gateway con naming estándar                                      |
+| Constructor               | Reemplaza               | Descripción                                                            |
+| ------------------------- | ----------------------- | ---------------------------------------------------------------------- |
+| `TemplateBucket`          | `s3.Bucket`             | S3 Bucket con SSL forzado, encriptación y bloqueo de acceso público    |
+| `TemplateTable`           | `dynamodb.Table`        | DynamoDB Table con `PAY_PER_REQUEST`, encriptación y PITR en PROD      |
+| `TemplateStringParameter` | `ssm.StringParameter`   | Parámetro SSM con ruta prefijada `/${repoAbrev}/${stage}/...`          |
+| `TemplateSecret`          | `secretsmanager.Secret` | Secret con prefijo corporativo en el nombre                            |
+| `TemplateLambdaFunction`  | `lambda.Function`       | Lambda con retención de logs configurada por entorno y naming estándar |
+| `TemplateStateMachine`    | `sfn.StateMachine`      | State Machine con naming estándar corporativo                          |
+| `TemplateRestApi`         | `apigateway.RestApi`    | API Gateway con naming estándar                                        |
 
 ---
 
@@ -254,19 +257,19 @@ El `eventSourceMiddleware` detecta y normaliza automáticamente los siguientes o
 
 Los códigos de error estándar del arquetipo (`EXCEPTION_CONSTANT`) son:
 
-| Código       | Clave                          | Mensaje                          |
-|--------------|--------------------------------|----------------------------------|
-| `ECORE-0001` | `REQUEST_STRUCTURE_EXCEPTION`  | Request Structure Exception      |
-| `ECORE-0002` | `VALIDATION_EXCEPTION`         | Validation Exception             |
-| `ECORE-0003` | `REQUEST_HANDLER_EXCEPTION`    | Request Handler Exception        |
-| `ECORE-0004` | `UNHANDLED_EXCEPTION`          | Unhandled Exception              |
-| `ECORE-0005` | `IDENTITY_NOT_FOUND_EXCEPTION` | Identity Not Found               |
-| `ECORE-0006` | `ID_CLIENT_NOT_FOUND_EXCEPTION`| Id Client Not Found              |
-| `ECORE-0007` | `NOT_FOUND_SESSION_EXCEPTION`  | User Session Not Found           |
-| `ECORE-0008` | `EXPIRED_SESSION_EXCEPTION`    | User Session Expired             |
-| `ECORE-0009` | `DUPLICATED_SESSION_EXCEPTION` | Duplicated User Session Exception|
-| `ECORE-0010` | `AUTHENTICATION_EXCEPTION`     | Authentication Exception         |
-| `ECORE-0011` | `AUTHORIZATION_EXCEPTION`      | Authorization Exception          |
+| Código       | Clave                           | Mensaje                           |
+| ------------ | ------------------------------- | --------------------------------- |
+| `ECORE-0001` | `REQUEST_STRUCTURE_EXCEPTION`   | Request Structure Exception       |
+| `ECORE-0002` | `VALIDATION_EXCEPTION`          | Validation Exception              |
+| `ECORE-0003` | `REQUEST_HANDLER_EXCEPTION`     | Request Handler Exception         |
+| `ECORE-0004` | `UNHANDLED_EXCEPTION`           | Unhandled Exception               |
+| `ECORE-0005` | `IDENTITY_NOT_FOUND_EXCEPTION`  | Identity Not Found                |
+| `ECORE-0006` | `ID_CLIENT_NOT_FOUND_EXCEPTION` | Id Client Not Found               |
+| `ECORE-0007` | `NOT_FOUND_SESSION_EXCEPTION`   | User Session Not Found            |
+| `ECORE-0008` | `EXPIRED_SESSION_EXCEPTION`     | User Session Expired              |
+| `ECORE-0009` | `DUPLICATED_SESSION_EXCEPTION`  | Duplicated User Session Exception |
+| `ECORE-0010` | `AUTHENTICATION_EXCEPTION`      | Authentication Exception          |
+| `ECORE-0011` | `AUTHORIZATION_EXCEPTION`       | Authorization Exception           |
 
 ---
 
@@ -291,3 +294,11 @@ pnpm run lint
 # Ejecutar linter con auto-fix
 pnpm run lint:fix
 ```
+
+---
+
+## 👥 Créditos / Autor
+
+Este proyecto fue desarrollado y estructurado por:
+
+- **Ricardo Genaro** - [@ricardogenaro99](https://github.com/ricardogenaro99)

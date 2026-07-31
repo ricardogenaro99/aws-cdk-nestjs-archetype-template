@@ -42,15 +42,15 @@ Funciona como una **biblioteca reutilizable de constructores abstractos** precon
 
 Es **MANDATORIO** utilizar los constructores preconfigurados (Template Constructs) de este arquetipo importándolos desde `./lib/index.ts`:
 
-| Constructor              | Reemplaza                       | Beneficios Automáticos                                               |
-|--------------------------|---------------------------------|----------------------------------------------------------------------|
-| `TemplateBucket`         | `s3.Bucket`                     | SSL forzado, bloqueo de acceso público, encriptación habilitada      |
-| `TemplateTable`          | `dynamodb.Table`                | `PAY_PER_REQUEST`, encriptación AWS managed, PITR en PROD, naming estándar |
-| `TemplateStringParameter`| `ssm.StringParameter`           | Ruta prefijada: `/${repoAbrev}/${stage}/...`                         |
-| `TemplateSecret`         | `secretsmanager.Secret`         | Nombre prefijado con entorno y abreviaciones corporativas            |
-| `TemplateLambdaFunction` | `lambda.Function`               | Retención de logs por entorno, nombre con prefijo corporativo        |
-| `TemplateStateMachine`   | `sfn.StateMachine`              | Nombre estándar, integración con configuración de entorno            |
-| `TemplateRestApi`        | `apigateway.RestApi`            | Nombre con prefijo corporativo y stage                               |
+| Constructor               | Reemplaza               | Beneficios Automáticos                                                     |
+| ------------------------- | ----------------------- | -------------------------------------------------------------------------- |
+| `TemplateBucket`          | `s3.Bucket`             | SSL forzado, bloqueo de acceso público, encriptación habilitada            |
+| `TemplateTable`           | `dynamodb.Table`        | `PAY_PER_REQUEST`, encriptación AWS managed, PITR en PROD, naming estándar |
+| `TemplateStringParameter` | `ssm.StringParameter`   | Ruta prefijada: `/${repoAbrev}/${stage}/...`                               |
+| `TemplateSecret`          | `secretsmanager.Secret` | Nombre prefijado con entorno y abreviaciones corporativas                  |
+| `TemplateLambdaFunction`  | `lambda.Function`       | Retención de logs por entorno, nombre con prefijo corporativo              |
+| `TemplateStateMachine`    | `sfn.StateMachine`      | Nombre estándar, integración con configuración de entorno                  |
+| `TemplateRestApi`         | `apigateway.RestApi`    | Nombre con prefijo corporativo y stage                                     |
 
 ### ¿Por qué?
 
@@ -66,25 +66,25 @@ Estos constructores aplican de manera automática:
 
 La configuración de infraestructura determina los valores de despliegue según el entorno activo (`STAGE`):
 
-| Propiedad        | Descripción                                                            |
-|------------------|------------------------------------------------------------------------|
-| `stage`          | Entorno actual: `DESA`, `TEST` o `PROD` (leído vía `ConfigUtil`)       |
-| `environments`   | Versión en minúsculas del `stage` (para naming de recursos)            |
-| `region.code`    | Región AWS (ej. `us-east-1`)                                           |
-| `region.abrev`   | Abreviación corporativa de región (ej. `UE1`)                          |
-| `account.id`     | ID de cuenta AWS por entorno                                           |
-| `account.abrev`  | Abreviación corporativa de cuenta (`DEVL`, `TEST`, `PROD`)             |
-| `lambda`         | Configuración de logs Lambda: retención por entorno (1 semana a 5 meses)|
-| `ssmRootPath`    | Ruta raíz para SSM: `/${repoAbrev}/${stage}`                           |
-| `service.tags`   | Tags corporativos aplicados a todos los recursos del Stack              |
+| Propiedad       | Descripción                                                              |
+| --------------- | ------------------------------------------------------------------------ |
+| `stage`         | Entorno actual: `DESA`, `TEST` o `PROD` (leído vía `ConfigUtil`)         |
+| `environments`  | Versión en minúsculas del `stage` (para naming de recursos)              |
+| `region.code`   | Región AWS (ej. `us-east-1`)                                             |
+| `region.abrev`  | Abreviación corporativa de región (ej. `UE1`)                            |
+| `account.id`    | ID de cuenta AWS por entorno                                             |
+| `account.abrev` | Abreviación corporativa de cuenta (`DEVL`, `TEST`, `PROD`)               |
+| `lambda`        | Configuración de logs Lambda: retención por entorno (1 semana a 5 meses) |
+| `ssmRootPath`   | Ruta raíz para SSM: `/${repoAbrev}/${stage}`                             |
+| `service.tags`  | Tags corporativos aplicados a todos los recursos del Stack               |
 
 ### Retención de Logs Lambda por Entorno
 
-| Entorno | Retención       |
-|---------|-----------------|
-| `DESA`  | 1 semana        |
-| `TEST`  | 4 meses         |
-| `PROD`  | 5 meses         |
+| Entorno | Retención |
+| ------- | --------- |
+| `DESA`  | 1 semana  |
+| `TEST`  | 4 meses   |
+| `PROD`  | 5 meses   |
 
 ---
 
@@ -127,12 +127,12 @@ tasksResource.addMethod('POST', new apigateway.LambdaIntegration(myLambda));
 
 Ejecuta estos comandos estando situado dentro de la carpeta `infrastructure/`, o usa los atajos `infra:*` desde la raíz del repositorio:
 
-| Comando (local)       | Atajo raíz              | Descripción                                          |
-|-----------------------|-------------------------|------------------------------------------------------|
-| `pnpm run synth`      | `pnpm run infra:synth`  | Sintetiza la plantilla de CloudFormation             |
-| `pnpm run diff`       | `pnpm run infra:diff`   | Compara diferencias con la infraestructura desplegada|
-| `pnpm run deploy`     | `pnpm run infra:deploy` | Despliega la infraestructura a AWS                   |
-| `pnpm run destroy`    | `pnpm run infra:destroy`| Elimina la infraestructura de AWS                    |
+| Comando (local)    | Atajo raíz               | Descripción                                           |
+| ------------------ | ------------------------ | ----------------------------------------------------- |
+| `pnpm run synth`   | `pnpm run infra:synth`   | Sintetiza la plantilla de CloudFormation              |
+| `pnpm run diff`    | `pnpm run infra:diff`    | Compara diferencias con la infraestructura desplegada |
+| `pnpm run deploy`  | `pnpm run infra:deploy`  | Despliega la infraestructura a AWS                    |
+| `pnpm run destroy` | `pnpm run infra:destroy` | Elimina la infraestructura de AWS                     |
 
 > [!TIP]
 > Antes de ejecutar `deploy` o `synth`, el script `prebuild` del workspace raíz correrá automáticamente para compilar la lógica de negocio en `/app`, asegurando que las Lambdas siempre desplieguen el último código compilado.

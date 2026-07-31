@@ -12,17 +12,16 @@ export class AppException extends Error {
   }
 
   throw(condition: any) {
-    const appException = this;
     if (typeof condition === 'undefined') {
-      throw appException;
+      throw this;
     }
     if (condition instanceof Function) {
       if (condition()) {
-        throw appException;
+        throw this;
       }
     }
     if (condition) {
-      throw appException;
+      throw this;
     }
   }
 }

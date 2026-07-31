@@ -13,7 +13,8 @@ export default tseslint.config(
       'cdk.out/',
       'app/',
       'coverage/',
-      'prepareBuild.ts'
+      'prepareBuild.ts',
+      'commitlint.config.cjs'
     ]
   },
   {

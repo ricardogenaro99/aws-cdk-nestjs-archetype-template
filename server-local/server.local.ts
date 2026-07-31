@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 import '../src/common/supports/LogContext';
 import * as dotenv from 'dotenv';
 dotenv.config();
@@ -5,6 +6,8 @@ dotenv.config();
 import express, { Request, Response } from 'express';
 import 'reflect-metadata';
 import { logContextStorage } from '../src/common/supports/LogContext';
+import * as fs from 'fs';
+import * as path from 'path';
 
 const app = express();
 app.use(express.json());
@@ -19,75 +22,50 @@ app.use((req: Request, res: Response, next) => {
 
 console.log('⏳ Preparando servidor...');
 
-let appContext: any = null;
-let isInitializing = false;
+// Define local module interface structure
+interface LocalModule {
+  path: string;
+  router: any;
+  initialize: () => Promise<any>;
+  cleanup: () => Promise<void>;
+  printHelp: (port: number | string) => void;
+  fileName: string;
+}
 
-// Inicializar el contexto de NestJS para el modulo Task Manager
-const initializeNestContext = async () => {
-  if (appContext) {
-    return appContext;
-  }
+const loadedModules: LocalModule[] = [];
 
-  if (isInitializing) {
-    while (isInitializing) {
-      await new Promise((resolve) => setTimeout(resolve, 100));
+// Scan and load modules dynamically
+const modulesDir = path.join(__dirname, 'modules');
+if (fs.existsSync(modulesDir)) {
+  const files = fs.readdirSync(modulesDir);
+  for (const file of files) {
+    if (file.endsWith('.local.ts') || file.endsWith('.local.js')) {
+      try {
+        const modulePath = path.join(modulesDir, file);
+        const module = require(modulePath);
+
+        if (module.path && module.router && module.initialize && module.cleanup && module.printHelp) {
+          app.use(module.path, module.router);
+          loadedModules.push({
+            path: module.path,
+            router: module.router,
+            initialize: module.initialize,
+            cleanup: module.cleanup,
+            printHelp: module.printHelp,
+            fileName: file,
+          });
+          console.log(`📦 Módulo cargado dinámicamente: ${file} en ${module.path}`);
+        } else {
+          console.warn(`⚠️ Archivo ${file} no exporta la interfaz completa del módulo local.`);
+        }
+      } catch (err: any) {
+        console.error(`❌ Error cargando módulo local ${file}:`, err.message);
+      }
     }
-    return appContext;
   }
-
-  try {
-    isInitializing = true;
-    console.log('🔄 Inicializando NestJS (Task Manager)...');
-
-    const { NestFactory } = require('@nestjs/core');
-    const { AppModule } = require('../src/task-manager/infrastructure/bootstrap/AppModule');
-    const { CustomLoggerSupport } = require('../src/common/application/supports/CustomLoggerSupport');
-
-    appContext = await NestFactory.createApplicationContext(AppModule, {
-      logger: new CustomLoggerSupport('TaskManager'),
-    });
-
-    console.log('✅ NestJS (Task Manager) inicializado correctamente');
-    isInitializing = false;
-    return appContext;
-  } catch (error: any) {
-    isInitializing = false;
-    console.error('❌ Error inicializando NestJS:', error.message);
-    throw error;
-  }
-};
-
-// Route matching for POST /tasks
-app.post('/tasks', async (req: Request, res: Response) => {
-  try {
-    const context = await initializeNestContext();
-    const { TaskModule } = require('../src/task-manager/infrastructure/controller/TaskModule');
-    const { TaskController } = require('../src/task-manager/infrastructure/controller/TaskController');
-
-    const controller = context.select(TaskModule).get(TaskController);
-
-    const result = await controller.initiateTask(req);
-    res.status(201).json({ payload: result });
-  } catch (error: any) {
-    res.status(500).json({ message: 'Internal local server error', error: error.message });
-  }
-});
-
-// Route matching for GET /tasks
-app.get('/tasks', async (req: Request, res: Response) => {
-  try {
-    const context = await initializeNestContext();
-    const { TaskModule } = require('../src/task-manager/infrastructure/controller/TaskModule');
-    const { TaskController } = require('../src/task-manager/infrastructure/controller/TaskController');
-
-    const controller = context.select(TaskModule).get(TaskController);
-
-    const result = await controller.getStatus(req);
-    res.status(200).json({ payload: result });
-  } catch (error: any) {
-    res.status(500).json({ message: 'Internal local server error', error: error.message });
-  }
-});
+} else {
+  console.warn(`⚠️ Directorio de módulos no encontrado en: ${modulesDir}`);
+}
 
 // Start Server
 const PORT = process.env.PORT || 3000;
@@ -96,14 +74,18 @@ const startServer = async () => {
   const bootstrapId = `REQ-${Date.now()}`;
   logContextStorage.run({ requestId: bootstrapId }, async () => {
     try {
-      await initializeNestContext();
+      // Pre-initialize all loaded modules
+      for (const module of loadedModules) {
+        await module.initialize();
+      }
 
       app.listen(PORT, () => {
-        console.log(`🚀 Local test server running on http://localhost:${PORT}`);
-        console.log(`👉 Test GET:  curl http://localhost:${PORT}/tasks`);
-        console.log(
-          `👉 Test POST: curl -X POST http://localhost:${PORT}/tasks -H "Content-Type: application/json" -d '{"payload":"My local test payload"}'\n`,
-        );
+        console.log(`\n🚀 Local test server running on http://localhost:${PORT}`);
+        // Print help instructions for all loaded modules
+        for (const module of loadedModules) {
+          console.log(`--- [Módulo: ${module.fileName}] ---`);
+          module.printHelp(PORT);
+        }
       });
     } catch (error: any) {
       console.error('❌ Error fatal al iniciar:', error.message);
@@ -115,8 +97,12 @@ const startServer = async () => {
 // Graceful shutdown
 const shutdown = async () => {
   console.log('\n⏳ Cerrando servidor...');
-  if (appContext) {
-    await appContext.close();
+  for (const module of loadedModules) {
+    try {
+      await module.cleanup();
+    } catch (err: any) {
+      console.error(`❌ Error en cleanup de ${module.fileName}:`, err.message);
+    }
   }
   process.exit(0);
 };

@@ -1,6 +1,10 @@
 {
   "name": "arq-impl-cdk",
   "version": "1.0.0",
+  "author": {
+    "name": "Ricardo Genaro",
+    "url": "https://github.com/ricardogenaro99"
+  },
   "main": "lib/index.js",
   "scripts": {
     "check": "tsc",

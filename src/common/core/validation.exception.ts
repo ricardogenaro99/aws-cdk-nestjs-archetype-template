@@ -16,17 +16,16 @@ export class ValidationException extends Error {
   }
 
   throw(condition?: any) {
-    const validationException = this;
     if (typeof condition === 'undefined') {
-      throw validationException;
+      throw this;
     }
     if (condition instanceof Function) {
       if (condition()) {
-        throw validationException;
+        throw this;
       }
     }
     if (condition) {
-      throw validationException;
+      throw this;
     }
   }
 }

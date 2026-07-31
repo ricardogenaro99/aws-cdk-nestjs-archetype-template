@@ -1,5 +1,6 @@
 import { LoggerService } from '@nestjs/common';
 import { logContextStorage } from './LogContext';
+import { inspect } from 'node:util';
 
 export class CustomLoggerSupport implements LoggerService {
   contextLog: string;
@@ -47,10 +48,28 @@ export class CustomLoggerSupport implements LoggerService {
     const contextRequestId =
       contextRequest?.awsRequestId || store?.requestId || process.env.AWS_REQUEST_ID || 'NO_REQUEST_ID';
 
-    const formattedMessage =
-      typeof message === 'object' ? JSON.stringify(message) : message?.trim()?.replace(/\n/g, '\r');
-    const traceLog = `${timestamp} ${contextRequestId} ${level} - ${context}`;
+    // Helper interno para formatear cualquier parámetro de forma segura
+    const safeFormat = (item: any): string => {
+      if (typeof item === 'object' && item !== null) {
+        try {
+          return JSON.stringify(item);
+        } catch {
+          return inspect(item, { depth: 2 });
+        }
+      }
+      return typeof item === 'string' ? item.trim().replace(/\n/g, '\r') : String(item);
+    };
 
+    // Formatear el primer mensaje
+    let formattedMessage = safeFormat(message);
+
+    // Formatear y concatenar los parámetros adicionales
+    if (optionalParams && optionalParams.length > 0) {
+      const extraParamsFormatted = optionalParams.map((param) => safeFormat(param)).join(' ');
+      formattedMessage += ` ${extraParamsFormatted}`;
+    }
+
+    const traceLog = `${timestamp} ${contextRequestId} ${level} - ${context}`;
     return `${traceLog}${formattedMessage}\n`;
   }
 }

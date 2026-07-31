@@ -1,14 +1,9 @@
-import { Task } from '../Task';
-
-export interface TaskInitiateResult {
-  task: Task;
-  s3Location: string;
-  executionArn: string;
-  ssmParameterValue: string;
-  secretValidation: string;
-}
+import { Task } from '../model/Task';
 
 export interface TaskRepository {
-  initiateTask(payload: string, shouldFail: boolean): Promise<TaskInitiateResult>;
-  getStatus(): Promise<any>;
+  createTask(task: Task): Promise<Task>;
+  getTasks(): Promise<Task[]>;
+  getTask(id: string): Promise<Task | null>;
+  updateTask(id: string, updates: Partial<Task>): Promise<Task | null>;
+  deleteTask(id: string): Promise<boolean>;
 }
