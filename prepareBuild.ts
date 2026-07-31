@@ -14,21 +14,6 @@ async function getPackage(): Promise<PackageJson> {
   return await fs.readJSON(path.join(__dirname, 'package.json'));
 }
 
-async function copyNpmrc(outDir: string): Promise<void> {
-  const file = '.npmrc';
-  const sourcePath = path.join(__dirname, file);
-  const targetPath = path.join(__dirname, outDir, file);
-
-  const exists = await fs.pathExists(sourcePath);
-
-  if (exists) {
-    await fs.copy(sourcePath, targetPath);
-    console.log(`✅ '${file}' copiado a '${outDir}'`);
-  } else {
-    console.log(`ℹ️ '${file}' no encontrado en el root`);
-  }
-}
-
 async function savePackageJson(outDir: string, packageData: PackageJson): Promise<void> {
   const targetFile = path.join(__dirname, outDir, 'package.json');
   await fs.writeJSON(targetFile, packageData, { spaces: 2 });
@@ -39,16 +24,29 @@ async function prepareBuild() {
   const OUT_DIR = 'app';
 
   const packageData = await getPackage();
+
+  // Filtrar dependencias innecesarias en producción (Lambda)
+  if (packageData.dependencies) {
+    for (const dep of Object.keys(packageData.dependencies)) {
+      if (dep.startsWith('@aws-sdk/') || dep === 'aws-sdk' || dep === 'aws-lambda' || dep === 'express') {
+        delete packageData.dependencies[dep];
+      }
+    }
+  }
+
   packageData.devDependencies = {};
   packageData.scripts = {
-    'package:install': 'pnpm install --prod --ignore-workspace --ignore-scripts --no-frozen-lockfile',
+    'package:install': 'npm install --omit=dev --no-audit --no-fund --ignore-scripts',
   };
 
   // Ensure output directory exists
   await fs.ensureDir(path.join(__dirname, OUT_DIR));
 
+  // Delete existing lockfiles in app folder
+  await fs.remove(path.join(__dirname, OUT_DIR, 'pnpm-lock.yaml'));
+  await fs.remove(path.join(__dirname, OUT_DIR, 'package-lock.json'));
+
   await savePackageJson(OUT_DIR, packageData);
-  await copyNpmrc(OUT_DIR);
 }
 
 prepareBuild()

@@ -163,7 +163,7 @@ const eventSourceMiddleware = (options: EventSourceMiddlewareOptions = {}): Midd
         exception.throw(!functionToExecute);
 
         const data = await handler.response[action](payload);
-        handler.response = JSON.stringify({ payload: data });
+        handler.response = { payload: data };
       }
     },
     onError: async (handler: any) => {
@@ -208,7 +208,7 @@ const eventSourceMiddleware = (options: EventSourceMiddlewareOptions = {}): Midd
           error.httpStatus = HTTP_CONSTANT.INTERNAL_SERVER_ERROR_STATUS.code;
         }
 
-        handler.error = JSON.stringify({ error });
+        handler.error = { error };
         return Promise.resolve();
       }
     },

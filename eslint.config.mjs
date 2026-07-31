@@ -14,7 +14,8 @@ export default tseslint.config(
       'app/',
       'coverage/',
       'prepareBuild.ts',
-      'commitlint.config.cjs'
+      'commitlint.config.cjs',
+      'run-cdk.ts'
     ]
   },
   {

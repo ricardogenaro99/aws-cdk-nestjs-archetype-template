@@ -12,9 +12,9 @@ export class TemplateTable extends dynamodb.Table {
   constructor(scope: Construct, id: string, props: TemplateTableProps) {
     const tableName =
       props.tableName ||
-      (props.tableNameSuffix
-        ? `aws-cdk-archetype-table-${config.environments}-${props.tableNameSuffix}`.toLowerCase()
-        : `aws-cdk-archetype-table-${config.environments}-${Util.generateUniqueIdentifier(id).toLowerCase()}`);
+      `${config.region.abrev}${config.account.abrev}DBCT${
+        props.tableNameSuffix || Util.generateUniqueIdentifier(id)
+      }`.toUpperCase();
 
     super(scope, id, {
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,

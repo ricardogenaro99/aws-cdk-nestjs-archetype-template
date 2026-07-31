@@ -127,15 +127,16 @@ tasksResource.addMethod('POST', new apigateway.LambdaIntegration(myLambda));
 
 Ejecuta estos comandos estando situado dentro de la carpeta `infrastructure/`, o usa los atajos `infra:*` desde la raíz del repositorio:
 
-| Comando (local)    | Atajo raíz               | Descripción                                           |
-| ------------------ | ------------------------ | ----------------------------------------------------- |
-| `pnpm run synth`   | `pnpm run infra:synth`   | Sintetiza la plantilla de CloudFormation              |
-| `pnpm run diff`    | `pnpm run infra:diff`    | Compara diferencias con la infraestructura desplegada |
-| `pnpm run deploy`  | `pnpm run infra:deploy`  | Despliega la infraestructura a AWS                    |
-| `pnpm run destroy` | `pnpm run infra:destroy` | Elimina la infraestructura de AWS                     |
+| Comando (local)    | Atajo raíz                 | Descripción                                           |
+| ------------------ | -------------------------- | ----------------------------------------------------- |
+| `cdk bootstrap`    | `pnpm run infra:bootstrap` | Inicializa el entorno AWS CDK (requerido una vez)     |
+| `pnpm run synth`   | `pnpm run infra:synth`     | Sintetiza la plantilla de CloudFormation              |
+| `pnpm run diff`    | `pnpm run infra:diff`      | Compara diferencias con la infraestructura desplegada |
+| `pnpm run deploy`  | `pnpm run infra:deploy`    | Despliega la infraestructura a AWS                    |
+| `pnpm run destroy` | `pnpm run infra:destroy`   | Elimina la infraestructura de AWS                     |
 
 > [!TIP]
 > Antes de ejecutar `deploy` o `synth`, el script `prebuild` del workspace raíz correrá automáticamente para compilar la lógica de negocio en `/app`, asegurando que las Lambdas siempre desplieguen el último código compilado.
 
 > [!IMPORTANT]
-> Asegúrate de tener configuradas las credenciales de AWS en tu entorno (`AWS_PROFILE`, `AWS_ACCESS_KEY_ID`, etc.) antes de ejecutar cualquier comando de CDK.
+> Los atajos `infra:*` ejecutan la herramienta `run-cdk.ts` para inyectar automáticamente las variables de tu archivo `.env` de la raíz del proyecto. Si no cuentas con un archivo `.env`, CDK resolverá tus credenciales globales (como `AWS_PROFILE` o las definidas en `~/.aws/credentials`).

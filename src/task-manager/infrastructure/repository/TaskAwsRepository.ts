@@ -2,70 +2,96 @@ import { Injectable } from '../../../common/Injectable';
 import { Logger } from '../../../common/Logger';
 import { Task } from '../../domain/model/Task';
 import { TaskRepository } from '../../domain/repository/TaskRepository';
+import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import { DynamoDBDocumentClient, ScanCommand, PutCommand, QueryCommand, DeleteCommand } from '@aws-sdk/lib-dynamodb';
 
 @Injectable()
 export class TaskAwsRepository implements TaskRepository {
   private readonly logger: Logger = new Logger(TaskAwsRepository.name);
-
-  // Singleton in-memory storage to demonstrate actual CRUD behavior locally
-  private static tasks: Task[] = [
-    {
-      taskId: 'task-1',
-      title: 'Aprender Arquitectura Hexagonal',
-      description: 'Estudiar principios DDD, puertos y adaptadores.',
-      status: 'IN_PROGRESS',
-      createdAt: new Date().toISOString(),
-    },
-    {
-      taskId: 'task-2',
-      title: 'Configurar AWS CDK',
-      description: 'Definir constructores abstractos en el arquetipo.',
-      status: 'PENDING',
-      createdAt: new Date().toISOString(),
-    },
-  ];
+  private readonly client = DynamoDBDocumentClient.from(new DynamoDBClient({}));
+  private readonly tableName = process.env.TASKS_TABLE_NAME || 'placeholder-tasks-table';
 
   public async createTask(task: Task): Promise<Task> {
     this.logger.log(`TaskAwsRepository:createTask - ID: ${task.taskId}`);
-    TaskAwsRepository.tasks.push(task);
+    await this.client.send(
+      new PutCommand({
+        TableName: this.tableName,
+        Item: task,
+      }),
+    );
     return task;
   }
 
   public async getTasks(): Promise<Task[]> {
     this.logger.log('TaskAwsRepository:getTasks');
-    return TaskAwsRepository.tasks;
+    const response = await this.client.send(
+      new ScanCommand({
+        TableName: this.tableName,
+      }),
+    );
+    return (response.Items || []) as Task[];
   }
 
   public async getTask(id: string): Promise<Task | null> {
     this.logger.log(`TaskAwsRepository:getTask - ID: ${id}`);
-    const task = TaskAwsRepository.tasks.find((t) => t.taskId === id);
-    return task || null;
+    const response = await this.client.send(
+      new QueryCommand({
+        TableName: this.tableName,
+        KeyConditionExpression: 'taskId = :taskId',
+        ExpressionAttributeValues: {
+          ':taskId': id,
+        },
+      }),
+    );
+
+    if (response.Items && response.Items.length > 0) {
+      return response.Items[0] as Task;
+    }
+    return null;
   }
 
   public async updateTask(id: string, updates: Partial<Task>): Promise<Task | null> {
     this.logger.log(`TaskAwsRepository:updateTask - ID: ${id}`);
-    const taskIndex = TaskAwsRepository.tasks.findIndex((t) => t.taskId === id);
-    if (taskIndex === -1) {
+    const existingTask = await this.getTask(id);
+    if (!existingTask) {
+      this.logger.warn(`TaskAwsRepository:updateTask - Task ${id} not found`);
       return null;
     }
 
-    const updatedTask = {
-      ...TaskAwsRepository.tasks[taskIndex],
+    const updatedTask: Task = {
+      ...existingTask,
       ...updates,
+      updatedAt: new Date().toISOString(),
     };
 
-    TaskAwsRepository.tasks[taskIndex] = updatedTask;
+    await this.client.send(
+      new PutCommand({
+        TableName: this.tableName,
+        Item: updatedTask,
+      }),
+    );
+
     return updatedTask;
   }
 
   public async deleteTask(id: string): Promise<boolean> {
     this.logger.log(`TaskAwsRepository:deleteTask - ID: ${id}`);
-    const taskIndex = TaskAwsRepository.tasks.findIndex((t) => t.taskId === id);
-    if (taskIndex === -1) {
+    const existingTask = await this.getTask(id);
+    if (!existingTask) {
+      this.logger.warn(`TaskAwsRepository:deleteTask - Task ${id} not found`);
       return false;
     }
 
-    TaskAwsRepository.tasks.splice(taskIndex, 1);
+    await this.client.send(
+      new DeleteCommand({
+        TableName: this.tableName,
+        Key: {
+          taskId: id,
+          createdAt: existingTask.createdAt,
+        },
+      }),
+    );
+
     return true;
   }
 }

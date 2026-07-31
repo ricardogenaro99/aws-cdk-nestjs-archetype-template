@@ -184,6 +184,10 @@ Puedes ejecutar los comandos de CDK directamente desde la raíz usando los atajo
 
 #### Desde la raíz (Recomendado):
 
+- **Inicializar entorno AWS (bootstrap)** (requerido una única vez por cuenta/región):
+  ```bash
+  pnpm run infra:bootstrap
+  ```
 - **Sintetizar la plantilla CloudFormation**:
   ```bash
   pnpm run infra:synth
@@ -200,6 +204,9 @@ Puedes ejecutar los comandos de CDK directamente desde la raíz usando los atajo
   ```bash
   pnpm run infra:destroy
   ```
+
+> [!TIP]
+> Todos los comandos `infra:*` ejecutan el script cargador [`run-cdk.ts`](run-cdk.ts). Este script busca automáticamente un archivo `.env` en la raíz del proyecto para cargar y pasar las credenciales de AWS al CLI de CDK. Si no hay un `.env`, utiliza automáticamente tus credenciales y perfiles de AWS globales.
 
 #### Desde la carpeta `infrastructure/`:
 

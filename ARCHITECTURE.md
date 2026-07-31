@@ -107,9 +107,9 @@ A diferencia de un servidor web HTTP clásico, las peticiones Lambda se enrutan 
 
 ## 🏗️ CDK de Infraestructura (`arq-impl-cdk`)
 
-Toda la infraestructura se define bajo el principio de **Plantillas de Gobernanza**:
+Toda la infraestructura se define bajo el principio de **Plantillas de Gobernanza** e **Infraestructura Modular por Dominios (Feature-based Infrastructure)**:
 
-### Regla de Oro
+### 1. Regla de Oro
 
 > **Queda estrictamente prohibido utilizar clases base de `aws-cdk-lib`** de forma directa en el stack principal.
 
@@ -119,6 +119,11 @@ Debes utilizar los constructores abstractos preconfigurados en `infrastructure/l
 2. **`TemplateTable` (DynamoDB)**: Aplica modo bajo demanda (`PAY_PER_REQUEST`), PITR (Point-In-Time Recovery) en producción, y nombres consistentes.
 3. **`TemplateLambdaFunction` (Lambda)**: Configura variables de entorno corporativas, empaquetado optimizado, y políticas de retención de logs dinámicas de acuerdo al stage (Desarrollo, Test, Producción).
 4. **`TemplateStringParameter` (SSM)**: Genera rutas jerárquicas automatizadas: `/${repoAbrev}/${stage}/${parameterSuffix}`.
+5. **`TemplateLambdaIntegration` (API Gateway)**: Mapea solicitudes sin proxy (`proxy: false`) inyectando dinámicamente plantillas VTL para enrutamiento por acciones.
+
+### 2. Infraestructura Modular
+
+Los recursos específicos de un dominio de negocio (ej. Lambdas, tablas de base de datos) se definen dentro de su propio módulo bajo `infrastructure/lib/module/`. El archivo `infrastructure.stack.ts` actúa únicamente como orquestador de alto nivel que inicializa los recursos transversales (como el API Gateway compartido) y los pasa a los respectivos módulos de infraestructura.
 
 ---
 
@@ -144,7 +149,8 @@ Para agregar una nueva funcionalidad/entidad (ejemplo: `User` o `Product`):
    - Agrega la acción a la interfaz de enrutamiento en `App.ts`.
 
 5. **Infraestructura**:
-   - Declara los recursos de soporte (ej. Tabla DynamoDB, Bucket S3) en `infrastructure/lib/infrastructure.stack.ts` usando los `Template Constructs`.
+   - Crea un constructor de infraestructura modular en `infrastructure/lib/module/your-domain/your-domain.infra.ts`.
+   - Instancia este constructor dentro del stack principal (`infrastructure/lib/infrastructure.stack.ts`) pasándole el API Gateway compartido.
 
 ---
 
