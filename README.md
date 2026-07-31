@@ -129,6 +129,18 @@ El servidor local se levantará en `http://localhost:3000` y mapeará las solici
     -d '{"payload": "Hola Mundo"}'
   ```
 
+### 📦 Carga Dinámica de Módulos Locales
+
+El servidor de desarrollo (`server-local/server.local.ts`) utiliza un mecanismo de **autodescubrimiento y carga dinámica**.
+
+Cualquier archivo creado dentro del directorio [`server-local/modules/`](server-local/modules) con la extensión `*.local.ts` será detectado y montado automáticamente al iniciar el servidor, siempre que exporte las siguientes propiedades:
+
+- **`path`**: Ruta HTTP base en la que se expondrá el módulo (ej. `/tasks`).
+- **`router`**: Router de Express que expone los endpoints locales.
+- **`initialize`**: Función asíncrona de inicialización (ej. para levantar el contenedor de NestJS).
+- **`cleanup`**: Función asíncrona de limpieza para liberar recursos en apagados graceful (SIGINT/SIGTERM).
+- **`printHelp`**: Función para imprimir instrucciones de prueba en consola al iniciar.
+
 ---
 
 ## 📦 Instalación, Construcción y Despliegue
