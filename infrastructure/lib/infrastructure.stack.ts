@@ -13,6 +13,7 @@ export class InfrastructureStack extends Stack {
     // API Gateway compartido por el arquetipo para enrutamiento modular.
     const apiGateway = new TemplateRestApi(this, 'SharedApiGateway', {
       apiNameSuffix: 'TSKMGR001',
+      description: 'REST API Task Manager created with CDK Archetype Template',
     });
 
     // =========================================================================

@@ -25,6 +25,7 @@ export class TaskManagerInfra extends Construct {
     this.lambda = new TemplateLambdaFunction(this, 'TaskManagerLambda', {
       functionNameSuffix: 'TSKMGR001',
       handler: 'src/task-manager/infrastructure/bootstrap/App.handler',
+      description: 'Task Manager Lambda Function',
       environment: {
         TASKS_TABLE_NAME: this.table.tableName,
       },
