@@ -1,194 +1,184 @@
-# Arquitectura y Diseño Técnico (Template Archetype)
+# Arquitectura y Diseño Técnico
 
-Este documento detalla la arquitectura de software, el flujo de ejecución, la integración de NestJS en entornos Serverless (AWS Lambda) y la gobernanza de infraestructura definida con AWS CDK.
+Este documento describe **cómo funciona realmente** el arquetipo: capas, flujo de una invocación de punta a punta, decisiones de diseño (y sus trade-offs) y la guía para agregar un dominio nuevo. Para comandos y setup ver [README.md](README.md); para la biblioteca CDK ver [infrastructure/README.md](infrastructure/README.md).
 
 ---
 
-## 📋 Resumen de Arquitectura
-
-El arquetipo está diseñado bajo los principios de **Clean Architecture** (Arquitectura Hexagonal / Puertos y Adaptadores), desacoplando completamente las reglas de negocio del framework NestJS y del proveedor de nube (AWS).
+## 1. Vista general
 
 ```mermaid
-graph TD
-    subgraph Entrada / Trigger
-        APIGW[API Gateway] -->|HTTP Request| APP_H[App.handler Lambda]
-        SFN[Step Functions] -->|Task Execution| STEP_H[Step.handler Lambda]
-    end
-
-    subgraph Capa de Adaptadores / Infraestructura
-        APP_H -->|1. Middy Middlewares| MID[Middlewares: Request, SSM, EventSource]
-        MID -->|2. Resolver Contexto| ACH[AppContextHelper NestJS]
-        ACH -->|3. Router| HC[HandlerCore]
-        HC -->|4. Invocar Action| TC[TaskController]
-    end
-
-    subgraph Capa de Aplicación
-        TC -->|5. Validar DTO| TV[TaskValidation]
-        TC -->|6. Ejecutar| TS[TaskService]
-    end
-
-    subgraph Capa de Dominio
-        TS -->|7. Reglas de Negocio| TDS[TaskDomainService]
-        TDS -->|8. Puerto| TR[TaskRepository Interface]
-    end
-
-    subgraph Capa de Adaptadores Salida
-        TR -->|9. Adaptador| TAWSR[TaskAwsRepository]
-        TAWSR -->|10. SDK/Storage| AWS[(DynamoDB / S3)]
-    end
-
-    style Capa de Dominio fill:#f9f,stroke:#333,stroke-width:2px
-    style Capa de Aplicación fill:#bbf,stroke:#333,stroke-width:2px
-    style Capa de Adaptadores / Infraestructura fill:#ddf,stroke:#333,stroke-width:2px
+flowchart LR
+    Client["Cliente (SigV4 + x-api-key)"] --> APIGW["API Gateway REST<br/>integración no-proxy + VTL"]
+    APIGW -->|"{ action, body, pathParameters, ... }"| Lambda["Lambda App.handler<br/>(nodejs22.x, código = /app)"]
+    Lambda --> Nest["NestJS ApplicationContext<br/>(singleton por contenedor)"]
+    Nest --> DDB[("DynamoDB<br/>tabla de tareas")]
+    Lambda -. "ssm:* env vars" .-> SSM[("SSM Parameter Store")]
 ```
 
----
+Piezas principales:
 
-## 📂 Capas del Directorio `src/` (Clean Architecture)
-
-### 1. Dominio (`src/task-manager/domain/`)
-
-Es el núcleo de la aplicación. No depende de NestJS, base de datos ni librerías de AWS.
-
-- **Modelos (`/model`)**: Entidades puras de negocio (ej. `Task`).
-- **Puertos de Repositorio (`/repository`)**: Interfaces TypeScript que definen el contrato para persistencia o integraciones (ej. `TaskRepository`).
-- **Servicios de Dominio (`/service`)**: Contienen la lógica y reglas de negocio puras (`TaskDomainService`).
-
-### 2. Aplicación (`src/task-manager/application/`)
-
-Coordina los flujos de datos hacia y desde la capa de dominio.
-
-- **Casos de Uso / Servicios (`TaskService`)**: Expone la lógica funcional hacia la capa externa.
-- **DTOs**: Contratos de datos estrictos para entrada y salida.
-- **Validación (`/validation`)**: Validadores de negocio específicos para asegurar la integridad de la entrada antes de procesarla.
-
-### 3. Infraestructura (`src/task-manager/infrastructure/`)
-
-Implementa los adaptadores que conectan el software con tecnologías externas.
-
-- **Controladores (`/controller`)**: Recibe las solicitudes mapeadas, valida el payload y delega la ejecución.
-- **Adaptadores de Repositorio (`/repository`)**: Implementación concreta de las interfaces de dominio (ej. `TaskAwsRepository` simulado en memoria o persistido en AWS S3/DynamoDB).
-- **Módulos NestJS (`/controller/TaskModule.ts`)**: Módulo específico del dominio para configurar la inyección de dependencias.
+| Pieza                     | Ubicación                                              | Responsabilidad                                                        |
+| ------------------------- | ------------------------------------------------------ | ---------------------------------------------------------------------- |
+| Handler Lambda            | `src/task-manager/infrastructure/bootstrap/App.ts`     | Punto de entrada; arma el pipeline middy.                              |
+| Wrapper instrumentado     | `src/common/core/lambda-bootstrap.helper.ts`           | Envuelve el handler en `AsyncLocalStorage` y aplica los middlewares.   |
+| Middlewares               | `src/common/core/*.middleware.ts`                      | Logging de contexto, resolución SSM, normalización y **despacho**.     |
+| Contexto NestJS           | `bootstrap/helpers/AppContextHelper.ts`                | Crea una vez el `ApplicationContext` (DI) y lo reutiliza.              |
+| Resolución de controlador | `bootstrap/HandlerCore.ts`                             | Devuelve el `TaskController` si tiene un método llamado como `action`. |
+| Dominio de ejemplo        | `src/task-manager/{domain,application,infrastructure}` | CRUD de tareas.                                                        |
+| Infraestructura           | `infrastructure/`                                      | Stack CDK + constructores `Template*`.                                 |
 
 ---
 
-## ⚡ Integración NestJS & AWS Lambda (Serverless Bootstrapping)
+## 2. Capas (estilo hexagonal)
 
-Levantar una aplicación completa de NestJS por cada invocación de Lambda degrada el rendimiento (Cold Starts). Para mitigar esto, el arquetipo implementa un patrón Singleton:
-
-### 1. Contexto NestJS Compartido (`AppContextHelper`)
-
-El archivo `AppContextHelper.ts` instancia y cachea el contexto NestJS de forma persistente entre invocaciones calientes de Lambda:
-
-```typescript
-let cachedContext: INestApplicationContext;
-
-export async function getAppContext(): Promise<INestApplicationContext> {
-  if (!cachedContext) {
-    cachedContext = await NestFactory.createApplicationContext(AppModule);
-  }
-  return cachedContext;
-}
+```mermaid
+flowchart TB
+    subgraph Infra["infrastructure/ (adaptadores)"]
+        C["TaskController"]
+        R["TaskAwsRepository"]
+        B["bootstrap/*"]
+    end
+    subgraph App["application/"]
+        S["TaskService"]
+        V["TaskValidation"]
+        D["dto/request/*"]
+    end
+    subgraph Dom["domain/"]
+        M["model/Task"]
+        P["repository/TaskRepository (puerto)"]
+        DS["service/TaskDomainService"]
+    end
+    C --> V
+    C --> S
+    S --> DS
+    DS --> P
+    R -. implementa .-> P
 ```
 
-### 2. Middleware Pipeline (Middy)
+| Capa                | Contenido real                                                                                                                                                      | Regla                                                                                         |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| **Dominio**         | `Task` (interface), `TaskRepository` (puerto), `TaskDomainService` (genera `taskId = task-<timestamp>`, estado inicial `PENDING`)                                   | No importa AWS SDK. Hoy usa el decorador `@Injectable` (re-export de NestJS) por pragmatismo. |
+| **Aplicación**      | `TaskService` (orquesta, traduce errores a `CustomException`), `TaskValidation` (manual: `title` obligatorio), DTOs como clases planas                              | No hay `class-validator`; la validación es imperativa.                                        |
+| **Infraestructura** | `TaskController` (métodos = acciones), `TaskModule` (DI: `'TaskRepository'` → `TaskAwsRepository`), `TaskAwsRepository` (DynamoDB DocumentClient), bootstrap Lambda | Único lugar donde se toca AWS.                                                                |
 
-El Handler principal en `App.ts` está envuelto con middleware personalizado para estandarizar el ciclo de vida:
+La inversión de dependencias se hace con un **token string**: `TaskDomainService` recibe `@Inject('TaskRepository')`, y `TaskModule` decide la implementación concreta. Cambiar a otra persistencia = otro provider, sin tocar el dominio.
 
-- **`requestMiddleware`**: Genera un ID de transacción (`requestId`) y configura el `AsyncLocalStorage` global.
-- **`ssmMiddleware`**: Descarga variables de configuración de SSM Parameter Store.
-- **`eventSourceMiddleware`**: Normaliza eventos provenientes de S3, SQS, SNS o API Gateway hacia un formato unificado.
-
-### 3. Router por Acciones (`HandlerCore`)
-
-A diferencia de un servidor web HTTP clásico, las peticiones Lambda se enrutan mediante una propiedad `action` contenida en el evento. `HandlerCore` localiza dinámicamente el controlador y la función a ejecutar basándose en dicha propiedad, evitando usar enrutamiento HTTP completo de Express/Fastify dentro de Lambda.
+Hay además helpers transversales en `src/common/infrastructure/` (`DynamoDbHelper`, `S3Helper`, `HttpHelper`) que el ejemplo **no usa todavía**; están pensados para nuevos repositorios.
 
 ---
 
-## 🏗️ CDK de Infraestructura (`arq-impl-cdk`)
+## 3. Flujo de una invocación (API Gateway → Lambda)
 
-Toda la infraestructura se define bajo el principio de **Plantillas de Gobernanza** e **Infraestructura Modular por Dominios (Feature-based Infrastructure)**:
+```mermaid
+sequenceDiagram
+    participant GW as API Gateway (VTL)
+    participant W as createInstrumentedWrapper (middy)
+    participant RM as requestMiddleware
+    participant SM as ssmMiddleware
+    participant EM as eventSourceMiddleware
+    participant H as bootstrap (App.ts)
+    participant N as AppContextHelper / HandlerCore
+    participant C as TaskController
 
-### 1. Regla de Oro
+    GW->>W: { action, body, pathParameters, queryStringParameters, headers }
+    W->>RM: before → log + process.env.AWS_REQUEST_ID
+    W->>SM: before → resuelve env "ssm:*" (una vez por contenedor)
+    W->>EM: before → detecta origen, event.source / event.payload
+    W->>H: handler (dentro de AsyncLocalStorage {requestId})
+    H->>N: getAppContext() + handleRequest(action)
+    N-->>H: instancia de TaskController (o undefined)
+    H-->>W: response = controller
+    W->>EM: after → valida action, llama controller[action](payload)
+    EM->>C: { headers, path, body, query, httpMethod }
+    C-->>EM: resultado
+    EM-->>GW: { payload: resultado }  (VTL responde $.payload)
+```
 
-> **Queda estrictamente prohibido utilizar clases base de `aws-cdk-lib`** de forma directa en el stack principal.
+Puntos clave, verificados en el código:
 
-Debes utilizar los constructores abstractos preconfigurados en `infrastructure/lib/construct/`:
+1. **El despacho ocurre en el `after` de `eventSourceMiddleware`**, no en el handler. El handler solo devuelve la instancia del controlador; el middleware invoca `controller[action](payload)` y reemplaza la respuesta por `{ payload: data }`. La plantilla de respuesta de API Gateway (`$input.path("$.payload")`) desempaqueta ese objeto.
+2. Si `action` falta o el controlador no tiene ese método se lanza `ValidationException` con `ECORE-0003`.
+3. **`requestId`**: el wrapper usa `context.awsRequestId` en `AsyncLocalStorage`; `requestMiddleware` además lo deja en `process.env.AWS_REQUEST_ID`, que el logger usa como respaldo fuera del contexto ALS.
+4. **`onError`** (solo origen API Gateway): convierte el error en `{ error: { ...campos, httpStatus } }` con `httpStatus` = `422` para `BusinessException`, `400` para `ValidationException`, o el `httpStatus` propio / `500`. Ver la limitación #2 del README: la integración no-proxy aún no mapea esos errores a códigos HTTP.
 
-1. **`TemplateBucket` (S3)**: Configura bloqueo de acceso público, políticas SSL forzadas y cifrado KMS por defecto.
-2. **`TemplateTable` (DynamoDB)**: Aplica modo bajo demanda (`PAY_PER_REQUEST`), PITR (Point-In-Time Recovery) en producción, y nombres consistentes.
-3. **`TemplateLambdaFunction` (Lambda)**: Configura variables de entorno corporativas, empaquetado optimizado, y políticas de retención de logs dinámicas de acuerdo al stage (Desarrollo, Test, Producción).
-4. **`TemplateStringParameter` (SSM)**: Genera rutas jerárquicas automatizadas: `/${repoAbrev}/${stage}/${parameterSuffix}`.
-5. **`TemplateLambdaIntegration` (API Gateway)**: Mapea solicitudes sin proxy (`proxy: false`) inyectando dinámicamente plantillas VTL para enrutamiento por acciones.
+### Orígenes de evento soportados por `eventSourceMiddleware`
 
-### 2. Infraestructura Modular
+Orden de detección (el primero que coincide gana):
 
-Los recursos específicos de un dominio de negocio (ej. Lambdas, tablas de base de datos) se definen dentro de su propio módulo bajo `infrastructure/lib/module/`. El archivo `infrastructure.stack.ts` actúa únicamente como orquestador de alto nivel que inicializa los recursos transversales (como el API Gateway compartido) y los pasa a los respectivos módulos de infraestructura.
+| Origen         | Condición                                                                                | `event.payload` resultante                                       |
+| -------------- | ---------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| API Gateway    | `origin === 'API_GATEWAY_REST_EVENT'`, o `action` + `body !== undefined`, o `httpMethod` | `{ body, pathParameters, query, headers, path, method, action }` |
+| S3             | `Records[0].eventSource === 'aws:s3'`                                                    | `[{ bucket, key, eventName }]`                                   |
+| SNS            | `Records[0].EventSource === 'aws:sns'`                                                   | `[{ message, messageAttributes }]`                               |
+| SQS            | `Records[0].eventSource === 'aws:sqs'`                                                   | `[{ messageId, body, attributes }]`                              |
+| EventBridge    | existe `detail-type`                                                                     | `event.detail`                                                   |
+| Lambda directa | existe `action`                                                                          | `{ action, payload }`                                            |
+| Step Functions | _fallback_                                                                               | `{ action, payload }`                                            |
+
+Solo el origen **API Gateway** tiene despacho automático a controlador en el `after`; para el resto, el handler debe consumir `event.payload` por su cuenta. Si el evento ya trae `payload`, el middleware no lo sobrescribe.
+
+### Handler de Step Functions
+
+`bootstrap/Step.ts` es un handler independiente (sin middy ni NestJS DI) que ejecuta `TaskService.processTask()` dentro de `AsyncLocalStorage`. Está como ejemplo; el stack actual no lo despliega.
 
 ---
 
-## 📝 Guía: Cómo crear una nueva funcionalidad
+## 4. Decisiones de diseño
 
-Para agregar una nueva funcionalidad/entidad (ejemplo: `User` o `Product`):
-
-1. **Definir Dominio**:
-   - Crea `src/your-domain/domain/model/YourEntity.ts`.
-   - Define el puerto en `src/your-domain/domain/repository/YourRepository.ts`.
-   - Escribe las reglas de negocio en `src/your-domain/domain/service/YourDomainService.ts`.
-
-2. **Crear Capa de Aplicación**:
-   - Define DTOs de entrada y salida.
-   - Crea `YourService.ts` en `src/your-domain/application/` inyectando tu servicio de dominio.
-
-3. **Crear Capa de Infraestructura**:
-   - Escribe el adaptador concreto en `src/your-domain/infrastructure/repository/YourAwsRepository.ts`.
-   - Crea `YourController.ts` y regístralo junto con su módulo en `YourModule.ts`.
-
-4. **Registrar Módulo**:
-   - Registra `YourModule` dentro de `src/task-manager/infrastructure/bootstrap/AppModule.ts`.
-   - Agrega la acción a la interfaz de enrutamiento en `App.ts`.
-
-5. **Infraestructura**:
-   - Crea un constructor de infraestructura modular en `infrastructure/lib/module/your-domain/your-domain.infra.ts`.
-   - Instancia este constructor dentro del stack principal (`infrastructure/lib/infrastructure.stack.ts`) pasándole el API Gateway compartido.
+| Decisión                                                                   | Motivo                                                                                    | Trade-off                                                                                 |
+| -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| **`NestFactory.createApplicationContext`** (sin Express/Fastify en Lambda) | Menor peso y arranque; solo se usa la DI de Nest.                                         | No hay decoradores HTTP (`@Get`, `@Body`, pipes, guards); el routing lo hace API Gateway. |
+| **Contexto singleton por contenedor** (`AppContextHelper`)                 | Las invocaciones _warm_ reutilizan el grafo de DI; solo el _cold start_ paga la creación. | Estado en memoria compartido entre invocaciones del mismo contenedor.                     |
+| **Routing por `action`** inyectada en VTL                                  | Una Lambda por dominio en vez de una por endpoint; menos recursos.                        | La VTL y el mapeo de errores viven en CDK, fuera del código de negocio.                   |
+| **Integración no-proxy**                                                   | El handler recibe un contrato propio y estable.                                           | Hay que declarar respuestas de error explícitamente (pendiente).                          |
+| **Un único asset `/app`** para todas las Lambdas                           | Build simple y un solo `package.json` de runtime.                                         | Cada Lambda carga todo el código y dependencias del servicio.                             |
+| **SDK v3 excluido de `app/`**                                              | El runtime `nodejs22.x` ya lo incluye; paquete más liviano.                               | La versión del SDK en Lambda es la del runtime, no la del lockfile.                       |
+| **Constructores `Template*` obligatorios**                                 | Naming, cifrado y retención consistentes.                                                 | Hay que extender la biblioteca cuando se necesita un recurso nuevo.                       |
 
 ---
 
-## 🛡️ Calidad de Código y Estándares de Desarrollo
+## 5. Logging y excepciones
 
-Este arquetipo implementa controles automáticos para asegurar que el código subido a producción mantenga altos estándares de calidad y legibilidad.
+- `Logger` (`src/common/Logger.ts`) es `CustomLoggerSupport`, también registrado como logger de NestJS. Formato: `timestamp requestId LEVEL - mensaje`.
+- Hay **dos** `LogContext.ts` (`src/common/supports/` y `src/common/application/supports/`) con la misma responsabilidad; conviene consolidarlos.
+- Jerarquía de errores:
+  - `ValidationException`: entrada inválida → `400`.
+  - `BusinessException`: regla de negocio → `422`.
+  - `CustomException`: error con `code`, `message`, `httpStatus` y `details` explícitos (lo usa `TaskService`).
+- Catálogo base `EXCEPTION_CONSTANT` (`ECORE-0001` … `ECORE-0011`): ver [`exceptions.constant.ts`](src/common/core/exceptions.constant.ts).
 
-### 1. Compilador de TypeScript (`tsconfig.json`)
+---
 
-La configuración del compilador está diseñada para ser estricta pero eficiente:
+## 6. Desarrollo local vs. AWS
 
-- `strictNullChecks: true`: Evita errores comunes al acceder a propiedades de variables que puedan ser `null` o `undefined`.
-- `skipLibCheck: true`: Optimiza el tiempo de compilación ignorando la verificación de tipos de las declaraciones en las librerías de `node_modules`.
+| Aspecto           | `pnpm start:local`                         | AWS                                             |
+| ----------------- | ------------------------------------------ | ----------------------------------------------- |
+| Entrada           | Express → `controller.metodo(req)` directo | API Gateway → `App.handler` → middy             |
+| Middlewares middy | ❌ no se ejecutan                          | ✅                                              |
+| Parámetro `{id}`  | `req.params.id`                            | `pathParameters` (ver limitación #1 del README) |
+| Errores           | siempre `500`                              | `400` / `422` / `500` vía `onError`             |
+| Persistencia      | DynamoDB real (`TASKS_TABLE_NAME`)         | DynamoDB del stack                              |
 
-### 2. Análisis Estático (ESLint Flat Config)
+El servidor local sirve para iterar sobre la lógica de negocio. **No reemplaza** una prueba del handler real (con un evento de ejemplo o `sam local invoke` sobre `cdk.out`).
 
-Se utiliza la nueva especificación Flat Config a través de `eslint.config.mjs`:
+---
 
-- Se configuran reglas recomendadas de `@typescript-eslint` y `eslint`.
-- Se prohibe el alias de `this` (`@typescript-eslint/no-this-alias`) para obligar a usar contextos léxicos correctos (arrow functions y `this` directo).
-- Se audita la presencia de variables declaradas y no utilizadas (`@typescript-eslint/no-unused-vars`).
-- Se ignoran las librerías de distribución interna (`app/`, `cdk.out/`) y archivos de configuración externos.
+## 7. Guía: agregar un dominio nuevo
 
-### 3. Formateo y Estilo de Código (Prettier)
+Ejemplo con `product`:
 
-Configurado a través de `.prettierrc` para imponer consistencia estilística:
-
-- Comas finales obligatorias en objetos de varias líneas (`trailingComma: "all"`).
-- Comillas simples para strings (`singleQuote: true`).
-- Ancho de línea máximo de 120 caracteres (`printWidth: 120`).
-
-### 4. Git Hooks con Husky y Commitlint
-
-- **Pre-commit (`.husky/pre-commit`)**: Ejecuta automáticamente `npx tsc` para asegurar que el código compile localmente antes de que se pueda realizar el commit.
-- **Commit-msg (`.husky/commit-msg`)**: Valida que los mensajes de Git cumplan con el estándar de **Conventional Commits** (ej. `feat:`, `fix:`, `docs:`, `refactor:`, `chore:`).
+1. **Dominio**: `src/product/domain/model/Product.ts`, `repository/ProductRepository.ts` (interface), `service/ProductDomainService.ts` con `@Inject('ProductRepository')`.
+2. **Aplicación**: `src/product/application/ProductService.ts`, `dto/request/*`, `validation/ProductValidation.ts`.
+3. **Infraestructura**:
+   - `repository/ProductAwsRepository.ts` implementa el puerto (puedes reutilizar `DynamoDbHelper`).
+   - `controller/ProductController.ts`: un método público por acción (`createProduct(request)`, …).
+   - `controller/ProductModule.ts`: registra controller, servicios y `{ provide: 'ProductRepository', useClass: ProductAwsRepository }`.
+4. **Bootstrap**: crea `src/product/infrastructure/bootstrap/` (App/HandlerCore/AppContextHelper/AppModule) siguiendo el de `task-manager`. Hoy `HandlerCore` está acoplado a `TaskController`, así que cada dominio tiene su propio bootstrap y su propia Lambda.
+5. **Infra CDK**: `infrastructure/lib/module/product/product.infra.ts` con `TemplateTable`, `TemplateLambdaFunction` (handler `src/product/infrastructure/bootstrap/App.handler`) y rutas con `TemplateLambdaIntegration({ action })`; instáncialo en `infrastructure.stack.ts` pasándole la API compartida.
+6. **Local** (opcional): `server-local/modules/product.local.ts` exportando `path`, `router`, `initialize`, `cleanup`, `printHelp`.
 
 ---
 
 ## 👤 Autor
 
-- **Ricardo Genaro** - [@ricardogenaro99](https://github.com/ricardogenaro99)
+**Ricardo Genaro** · [@ricardogenaro99](https://github.com/ricardogenaro99)

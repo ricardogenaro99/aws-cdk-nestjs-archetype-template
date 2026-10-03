@@ -1,142 +1,234 @@
-# AWS CDK Biblioteca de Infraestructura (`arq-impl-cdk`)
+# Infraestructura CDK (`arq-impl-cdk`)
 
-Este subdirectorio contiene la definición y provisionamiento de la infraestructura del microservicio en AWS mediante **AWS CDK (Cloud Development Kit)** y TypeScript.
+Workspace pnpm con la **app CDK** del servicio y una **biblioteca de constructores** (`Template*`) que estandariza naming, cifrado, retención y políticas de borrado por ambiente.
 
-Funciona como una **biblioteca reutilizable de constructores abstractos** preconfigurados con las mejores prácticas corporativas de seguridad, gobernanza y estándares de nomenclatura.
+- Entrypoint: [`bin/infrastructure.ts`](bin/infrastructure.ts). Carga `../../.env` e instancia `InfrastructureStack` con id **`TemplateCdkBaseStack`**.
+- Orquestador: [`lib/infrastructure.stack.ts`](lib/infrastructure.stack.ts). Crea la API compartida y los módulos de dominio.
+- Biblioteca: todo se exporta desde [`lib/index.ts`](lib/index.ts).
 
 ---
 
-## 🛠️ Estructura de la Carpeta
+## 🗂️ Estructura
 
 ```text
-├── bin/                          # Entrypoint de la aplicación CDK (instanciación del Stack)
+infrastructure/
+├── bin/infrastructure.ts
 ├── lib/
 │   ├── common/
-│   │   ├── config.ts             # Configuración centralizada por entorno (stage, región, cuenta, tags)
-│   │   └── enum.ts               # Enumeraciones (Stage, Region, AccountAbrev, TAG, etc.)
-│   ├── construct/                # Constructores abstractos reutilizables (*.construct.ts)
-│   │   ├── api/                  # API Gateway pre-configurado (TemplateRestApi)
-│   │   ├── database/             # DynamoDB Table segura (TemplateTable) ← NUEVO
-│   │   ├── lambda/               # Lambdas con logs estándar y runtime configurado (TemplateLambdaFunction)
-│   │   ├── orchestration/        # Step Functions / State Machines (TemplateStateMachine)
-│   │   ├── sm/                   # Secrets Manager con prefijos estándar (TemplateSecret)
-│   │   ├── ssm/                  # SSM Parameter Store con rutas estandarizadas (TemplateStringParameter)
-│   │   └── storage/              # S3 Buckets seguros - SSL, encriptación, KMS (TemplateBucket)
-│   ├── interface/
-│   │   └── config.interface.ts   # Interfaz TypeScript de la configuración (ConfigByStage)
-│   ├── util/
-│   │   ├── config.util.ts        # Utilidad para resolver el stage actual (ConfigUtil)
-│   │   └── util.ts               # Utilidades generales (Util.generateUniqueIdentifier, etc.)
-│   ├── infrastructure.stack.ts   # Stack principal donde se componen los recursos AWS
-│   └── index.ts                  # Punto de exportación de toda la biblioteca CDK
-├── cdk.json                      # Configuración del CLI de CDK y entrypoint ts-node
-├── tsconfig.json                 # Configuración del compilador TS para infraestructura
-└── package.json                  # Dependencias CDK y scripts locales de ejecución
+│   │   ├── config.ts               # Objeto `config` resuelto según STAGE
+│   │   └── enum.ts                 # Stage, Region, RegionAbrev, AccountAbrev, TAG, ...
+│   ├── construct/
+│   │   ├── api/
+│   │   │   ├── api-gateway.construct.ts         # TemplateRestApi
+│   │   │   └── lambda-integration.construct.ts  # TemplateLambdaIntegration
+│   │   ├── database/table.construct.ts          # TemplateTable
+│   │   ├── lambda/lambda.construct.ts           # TemplateLambdaFunction
+│   │   ├── orchestration/state-machine.construct.ts  # TemplateStateMachine
+│   │   ├── sm/secret.construct.ts               # TemplateSecret
+│   │   ├── ssm/ssm.construct.ts                 # TemplateStringParameter
+│   │   └── storage/bucket.construct.ts          # TemplateBucket
+│   ├── interface/config.interface.ts            # ConfigByStage
+│   ├── module/task-manager/task-manager.infra.ts
+│   ├── util/config.util.ts                      # ConfigUtil.getCurrentStage / setTags
+│   ├── util/util.ts                             # Util.generateUniqueIdentifier (sufijo hash SHA-256)
+│   ├── infrastructure.stack.ts
+│   └── index.ts
+├── cdk.json                        # app: npx ts-node bin/infrastructure.ts + feature flags
+├── tsconfig.json                   # strict + noUnusedLocals/Parameters, noEmit
+└── package.json
 ```
 
 ---
 
-## ⚠️ Regla de Oro / Mandamiento
+## 📏 Regla de gobernanza
 
-**NO instanciar recursos de AWS usando directamente las clases nativas de `aws-cdk-lib`** (como `s3.Bucket`, `dynamodb.Table`, `secretsmanager.Secret`, `lambda.Function`, etc.).
+> Dentro de `lib/module/**` y `infrastructure.stack.ts` **no instancies directamente** `s3.Bucket`, `dynamodb.Table`, `lambda.Function`, `apigateway.RestApi`, `ssm.StringParameter`, `secretsmanager.Secret` ni `sfn.StateMachine`. Usa su equivalente `Template*`.
+>
+> Si necesitas un recurso que no tiene constructor, **agrégalo a `lib/construct/` y expórtalo en `lib/index.ts`** antes de usarlo.
 
-Es **MANDATORIO** utilizar los constructores preconfigurados (Template Constructs) de este arquetipo importándolos desde `./lib/index.ts`:
-
-| Constructor               | Reemplaza               | Beneficios Automáticos                                                     |
-| ------------------------- | ----------------------- | -------------------------------------------------------------------------- |
-| `TemplateBucket`          | `s3.Bucket`             | SSL forzado, bloqueo de acceso público, encriptación habilitada            |
-| `TemplateTable`           | `dynamodb.Table`        | `PAY_PER_REQUEST`, encriptación AWS managed, PITR en PROD, naming estándar |
-| `TemplateStringParameter` | `ssm.StringParameter`   | Ruta prefijada: `/${repoAbrev}/${stage}/...`                               |
-| `TemplateSecret`          | `secretsmanager.Secret` | Nombre prefijado con entorno y abreviaciones corporativas                  |
-| `TemplateLambdaFunction`  | `lambda.Function`       | Retención de logs por entorno, nombre con prefijo corporativo              |
-| `TemplateStateMachine`    | `sfn.StateMachine`      | Nombre estándar, integración con configuración de entorno                  |
-| `TemplateRestApi`         | `apigateway.RestApi`    | Nombre con prefijo corporativo y stage                                     |
-
-### ¿Por qué?
-
-Estos constructores aplican de manera automática:
-
-1. **Nomenclatura estándar**: Prefijos por entorno (`desa`, `test`, `prod`), abreviaciones de región (`UE1`) y cuenta (`DEVL`, `TEST`, `PROD`).
-2. **Seguridad por defecto**: Encriptación en reposo obligatoria, bloqueo de acceso público en S3, SSL forzado, políticas de retención de logs configuradas por entorno.
-3. **Gobernanza**: Todos los recursos heredan automáticamente las etiquetas corporativas definidas en `config.ts`.
+Es una convención de equipo: no hay lint rule que la haga cumplir.
 
 ---
 
-## ⚙️ Configuración del Entorno (`/lib/common/config.ts`)
+## 🧱 Catálogo de constructores
 
-La configuración de infraestructura determina los valores de despliegue según el entorno activo (`STAGE`):
+Todos aceptan las props nativas de CDK; los valores de abajo son **defaults** que puedes sobrescribir con props, **excepto el nombre**, que siempre se fuerza.
 
-| Propiedad       | Descripción                                                              |
-| --------------- | ------------------------------------------------------------------------ |
-| `stage`         | Entorno actual: `DESA`, `TEST` o `PROD` (leído vía `ConfigUtil`)         |
-| `environments`  | Versión en minúsculas del `stage` (para naming de recursos)              |
-| `region.code`   | Región AWS (ej. `us-east-1`)                                             |
-| `region.abrev`  | Abreviación corporativa de región (ej. `UE1`)                            |
-| `account.id`    | ID de cuenta AWS por entorno                                             |
-| `account.abrev` | Abreviación corporativa de cuenta (`DEVL`, `TEST`, `PROD`)               |
-| `lambda`        | Configuración de logs Lambda: retención por entorno (1 semana a 5 meses) |
-| `ssmRootPath`   | Ruta raíz para SSM: `/${repoAbrev}/${stage}`                             |
-| `service.tags`  | Tags corporativos aplicados a todos los recursos del Stack               |
+### `TemplateRestApi` (`apigateway.RestApi`)
 
-### Retención de Logs Lambda por Entorno
+| Aspecto          | Valor                                                                                                                                   |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| Props propias    | `apiNameSuffix` (req.), `description` (req.)                                                                                            |
+| Nombre           | `${regionAbrev}${accountAbrev}APIC${apiNameSuffix}` → ej. `UE1DEVLAPICTSKMGR001`                                                        |
+| Stage            | `config.environments` (`desa` / `test` / `prod`)                                                                                        |
+| Auth por defecto | `authorizationType: IAM` **+** `apiKeyRequired: true` en cada método                                                                    |
+| CORS             | `allowOrigins: ALL`, `allowMethods: ALL`, `allowHeaders: DEFAULT`                                                                       |
+| Extras           | Crea **API Key** (`<nombre>-ApiKey`) y **Usage Plan** (`<nombre>-UsagePlan`) asociados al stage. Expuestos como `apiKey` y `usagePlan`. |
 
-| Entorno | Retención |
-| ------- | --------- |
-| `DESA`  | 1 semana  |
-| `TEST`  | 4 meses   |
-| `PROD`  | 5 meses   |
+### `TemplateLambdaIntegration` (`apigateway.LambdaIntegration`)
+
+| Aspecto       | Valor                                                                                                 |
+| ------------- | ----------------------------------------------------------------------------------------------------- |
+| Firma         | `new TemplateLambdaIntegration(fn, { action, statusCode? })`                                          |
+| Modo          | `proxy: false` (forzado)                                                                              |
+| Request (VTL) | `{ "action": "<action>", "body", "pathParameters", "queryStringParameters", "headers" }`              |
+| Response      | Solo una integración de éxito (`statusCode`, default `200`) con plantilla `$input.path("$.payload")`. |
+
+> [!WARNING]
+> No define respuestas de error (`selectionPattern`). Un error de la Lambda cae en la respuesta por defecto (2xx). Hay que agregar patrones para `400`/`422`/`500`.
+
+### `TemplateLambdaFunction` (`lambda.Function`)
+
+| Aspecto        | Valor                                                                                                                         |
+| -------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Props propias  | `functionNameSuffix` (req.), `handler` (req., relativo a `/app`, ej. `src/task-manager/infrastructure/bootstrap/App.handler`) |
+| Nombre         | `${regionAbrev}${accountAbrev}LMBFACT${functionNameSuffix}`                                                                   |
+| Defaults       | `runtime: nodejs22.x`, `memorySize: 512`, `timeout: 30s`, `tracing: DISABLED`                                                 |
+| Código         | `Code.fromAsset('<repo>/app')` (excluye `.npmrc`). **Requiere haber corrido `pnpm run build`.**                               |
+| Env inyectadas | `TZ=America/Lima`, `STAGE=<stage>` + las que pases                                                                            |
+| Logs           | LogGroup explícito `/aws/lambda/<nombre>` con retención por ambiente y `RemovalPolicy.DESTROY` (en todos los ambientes)       |
+
+### `TemplateTable` (`dynamodb.Table`)
+
+| Aspecto       | Valor                                                                                                        |
+| ------------- | ------------------------------------------------------------------------------------------------------------ |
+| Props propias | `tableNameSuffix?` (si falta, usa el `id` + hash)                                                            |
+| Nombre        | `${regionAbrev}${accountAbrev}DBCT${suffix}` en mayúsculas                                                   |
+| Defaults      | `PAY_PER_REQUEST`, `AWS_MANAGED` encryption, PITR solo en `PROD`, `RETAIN` en `PROD` / `DESTROY` en el resto |
+
+> [!NOTE]
+> Usa `pointInTimeRecovery`, deprecado en `aws-cdk-lib` reciente (la synth emite warning). Migrar a `pointInTimeRecoverySpecification`.
+
+### `TemplateBucket` (`s3.Bucket`)
+
+| Aspecto       | Valor                                                                                                                                                    |
+| ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Props propias | `bucketNameSuffix?`                                                                                                                                      |
+| Nombre        | `aws-cdk-archetype-bucket-${environments}-${suffix}` (minúsculas; prefijo fijo, cámbialo al instanciar la plantilla)                                     |
+| Defaults      | `S3_MANAGED` encryption, `BLOCK_ALL`, `enforceSSL`, `versioned: true`, `RETAIN` + sin auto-delete en `PROD`; `DESTROY` + `autoDeleteObjects` en el resto |
+
+### `TemplateStringParameter` (`ssm.StringParameter`)
+
+Nombre: `parameterName` explícito o `${ssmRootPath}/${parameterNameSuffix ?? id}` → ej. `/ARCHETYPE/DESA/db-url`.
+
+### `TemplateSecret` (`secretsmanager.Secret`)
+
+Nombre: `secretName` explícito o `${ssmRootPath}/${secretNameSuffix ?? id}`. Cifrado con la clave por defecto de Secrets Manager.
+
+### `TemplateStateMachine` (`sfn.StateMachine`)
+
+| Aspecto       | Valor                                           |
+| ------------- | ----------------------------------------------- |
+| Props propias | `stateMachineNameSuffix` (req.)                 |
+| Nombre        | `${regionAbrev}${accountAbrev}STFFACT${suffix}` |
+| Defaults      | `timeout: 10 min`, `tracingEnabled: true`       |
 
 ---
 
-## 🧩 Ejemplos de Uso (en `infrastructure.stack.ts`)
+## ⚙️ Configuración por ambiente (`lib/common/config.ts`)
 
-El stack principal incluye ejemplos comentados de todos los constructores disponibles:
+El ambiente sale de `process.env.STAGE` (`DESA` por defecto; un valor inválido también cae en `DESA`).
 
-```typescript
-// EXAMPLE: DynamoDB Table (TemplateTable)
-const myTable = new TemplateTable(this, 'MyTable', {
-  tableNameSuffix: 'task-data',
-  partitionKey: { name: 'id', type: dynamodb.AttributeType.STRING },
-  sortKey: { name: 'createdAt', type: dynamodb.AttributeType.NUMBER },
-});
+| Campo                           | DESA                | TEST                | PROD                |
+| ------------------------------- | ------------------- | ------------------- | ------------------- |
+| `account.abrev`                 | `DEVL`              | `TEST`              | `PROD`              |
+| `account.id`                    | fijo en código      | fijo en código      | fijo en código      |
+| `region`                        | `us-east-1` / `UE1` | `us-east-1` / `UE1` | `us-east-1` / `UE1` |
+| Retención logs Lambda           | 1 semana            | 4 meses             | 5 meses             |
+| Tabla / Bucket `RemovalPolicy`  | `DESTROY`           | `DESTROY`           | `RETAIN`            |
+| PITR DynamoDB                   | no                  | no                  | sí                  |
+| LogGroup Lambda `RemovalPolicy` | `DESTROY`           | `DESTROY`           | `DESTROY`           |
 
-// EXAMPLE: Lambda Function (TemplateLambdaFunction)
-const myLambda = new TemplateLambdaFunction(this, 'MyApiLambda', {
-  functionNameSuffix: 'APIPROC001',
-  handler: 'src/task-manager/infrastructure/bootstrap/App.handler',
-  environment: {
-    BUCKET_NAME: myBucket.bucketName,
-    SSM_PARAMETER_NAME: mySsmParameter.parameterName,
-  },
-});
+Otros valores:
 
-// EXAMPLE: API Gateway + Lambda Integration (TemplateRestApi)
-const myApiGateway = new TemplateRestApi(this, 'MyApiGateway', {
-  apiNameSuffix: 'GATEWAY001',
-});
-const tasksResource = myApiGateway.root.addResource('tasks');
-tasksResource.addMethod('POST', new apigateway.LambdaIntegration(myLambda));
-```
-
-> [!TIP]
-> Descomenta los bloques de ejemplo en [`infrastructure.stack.ts`](lib/infrastructure.stack.ts) a medida que los necesites. Los imports correspondientes están también comentados para evitar errores `noUnusedLocals` del compilador TypeScript.
-
----
-
-## 🚀 Comandos Disponibles
-
-Ejecuta estos comandos estando situado dentro de la carpeta `infrastructure/`, o usa los atajos `infra:*` desde la raíz del repositorio:
-
-| Comando (local)    | Atajo raíz                 | Descripción                                           |
-| ------------------ | -------------------------- | ----------------------------------------------------- |
-| `cdk bootstrap`    | `pnpm run infra:bootstrap` | Inicializa el entorno AWS CDK (requerido una vez)     |
-| `pnpm run synth`   | `pnpm run infra:synth`     | Sintetiza la plantilla de CloudFormation              |
-| `pnpm run diff`    | `pnpm run infra:diff`      | Compara diferencias con la infraestructura desplegada |
-| `pnpm run deploy`  | `pnpm run infra:deploy`    | Despliega la infraestructura a AWS                    |
-| `pnpm run destroy` | `pnpm run infra:destroy`   | Elimina la infraestructura de AWS                     |
-
-> [!TIP]
-> Antes de ejecutar `deploy` o `synth`, el script `prebuild` del workspace raíz correrá automáticamente para compilar la lógica de negocio en `/app`, asegurando que las Lambdas siempre desplieguen el último código compilado.
+- `repoAbrev = 'ARCHETYPE'`: base de `ssmRootPath` (`/ARCHETYPE/<STAGE>`) y del nombre de servicio.
+- `service.name = ${regionAbrev}${accountAbrev}MTOCLF${repoAbrev}`.
+- `service.tags`: `Name`, `Entorno`, `Ambiente`, `Proyecto`, `Responsable`.
 
 > [!IMPORTANT]
-> Los atajos `infra:*` ejecutan la herramienta `run-cdk.ts` para inyectar automáticamente las variables de tu archivo `.env` de la raíz del proyecto. Si no cuentas con un archivo `.env`, CDK resolverá tus credenciales globales (como `AWS_PROFILE` o las definidas en `~/.aws/credentials`).
+>
+> - **Los tags no se aplican.** `ConfigUtil.setTags()` existe pero nadie lo llama, y la synth actual no contiene ninguno. Para activarlos: `ConfigUtil.setTags(app, config.service.tags)` en `bin/infrastructure.ts`.
+> - **`account.id` no se usa.** El stack se crea sin `env`, así que despliega en la cuenta de las credenciales activas.
+> - `service.name` tampoco se usa como id del stack (es `TemplateCdkBaseStack`).
+
+---
+
+## 🧩 Módulo de ejemplo: `task-manager`
+
+[`module/task-manager/task-manager.infra.ts`](lib/module/task-manager/task-manager.infra.ts) crea:
+
+- `TemplateTable` `TSKMGR001` (PK `taskId`, SK `createdAt`, ambos string).
+- `TemplateLambdaFunction` `TSKMGR001` → `App.handler`, con env `TASKS_TABLE_NAME` y permisos `grantReadWriteData`.
+- Rutas sobre la API compartida:
+
+| Método | Ruta          | action       | statusCode |
+| ------ | ------------- | ------------ | ---------- |
+| POST   | `/tasks`      | `createTask` | 201        |
+| GET    | `/tasks`      | `getTasks`   | 200        |
+| GET    | `/tasks/{id}` | `getTask`    | 200        |
+| PUT    | `/tasks/{id}` | `updateTask` | 200        |
+| DELETE | `/tasks/{id}` | `deleteTask` | 200        |
+
+Patrón para un módulo nuevo:
+
+```typescript
+import { Construct } from 'constructs';
+import * as apigateway from 'aws-cdk-lib/aws-apigateway';
+import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
+import { TemplateLambdaFunction, TemplateLambdaIntegration, TemplateTable } from '../../index';
+
+export interface ProductInfraProps {
+  apiGateway: apigateway.RestApi;
+}
+
+export class ProductInfra extends Construct {
+  constructor(scope: Construct, id: string, props: ProductInfraProps) {
+    super(scope, id);
+
+    const table = new TemplateTable(this, 'ProductTable', {
+      tableNameSuffix: 'PRODUCT001',
+      partitionKey: { name: 'productId', type: dynamodb.AttributeType.STRING },
+    });
+
+    const fn = new TemplateLambdaFunction(this, 'ProductLambda', {
+      functionNameSuffix: 'PRODUCT001',
+      handler: 'src/product/infrastructure/bootstrap/App.handler',
+      environment: { PRODUCTS_TABLE_NAME: table.tableName },
+    });
+    table.grantReadWriteData(fn);
+
+    const products = props.apiGateway.root.addResource('products');
+    products.addMethod('POST', new TemplateLambdaIntegration(fn, { action: 'createProduct', statusCode: '201' }), {
+      methodResponses: [{ statusCode: '201' }],
+    });
+  }
+}
+```
+
+Y en `infrastructure.stack.ts`: `new ProductInfra(this, 'ProductModule', { apiGateway });`.
+
+---
+
+## 🚀 Comandos
+
+Desde la raíz (recomendado; inyectan `.env` vía [`run-cdk.ts`](../run-cdk.ts)):
+
+| Raíz                       | Equivalente en `infrastructure/` | Descripción                           |
+| -------------------------- | -------------------------------- | ------------------------------------- |
+| `pnpm run infra:bootstrap` | `npx cdk bootstrap`              | Bootstrap de cuenta/región (una vez). |
+| `pnpm run infra:synth`     | `pnpm run synth`                 | Genera `cdk.out/`.                    |
+| `pnpm run infra:diff`      | `pnpm run diff`                  | Diferencias con lo desplegado.        |
+| `pnpm run infra:deploy`    | `pnpm run deploy`                | Despliega.                            |
+| `pnpm run infra:destroy`   | `pnpm run destroy`               | Elimina el stack.                     |
+
+> [!WARNING]
+> Ningún comando `infra:*` recompila `/app`. Antes de `infra:deploy` ejecuta `pnpm run build` desde la raíz. Dentro de `infrastructure/`, `pnpm run build` sí dispara el build raíz (vía `prebuild`) y luego hace type-check del CDK.
+
+> [!NOTE]
+> `cdk.json` define un subconjunto de feature flags. La synth informa que hay otros no configurados (`cdk flags --unstable=flags` para revisarlos).
+
+---
+
+## 👤 Autor
+
+**Ricardo Genaro** · [@ricardogenaro99](https://github.com/ricardogenaro99)

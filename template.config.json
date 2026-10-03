@@ -1,0 +1,132 @@
+{
+  "schemaVersion": 1,
+  "name": "AWS CDK + NestJS Archetype",
+  "description": "Microservicio serverless con NestJS 11 (DI sobre Lambda), AWS CDK v2, API Gateway REST y DynamoDB, organizado por capas.",
+  "category": "Backend & Cloud",
+  "order": 1,
+  "defaultBranch": "master",
+  "tags": ["nestjs", "aws-cdk", "typescript", "lambda", "api-gateway", "dynamodb", "pnpm"],
+  "requirements": {
+    "node": ">=22",
+    "packageManager": "pnpm"
+  },
+  "prompts": [
+    {
+      "name": "PROJECT_NAME",
+      "type": "text",
+      "message": "Nombre del proyecto (kebab-case):",
+      "default": "my-service",
+      "validate": "^[a-z][a-z0-9-]{2,40}$"
+    },
+    {
+      "name": "PROJECT_DESCRIPTION",
+      "type": "text",
+      "message": "Descripción corta del servicio:",
+      "default": "Microservicio serverless con NestJS y AWS CDK"
+    },
+    {
+      "name": "REPO_ABREV",
+      "type": "text",
+      "message": "Abreviatura del servicio en MAYÚSCULAS (raíz SSM /<ABREV>/<STAGE> y tag Proyecto):",
+      "default": "MYSERVICE",
+      "validate": "^[A-Z][A-Z0-9]{2,15}$"
+    },
+    {
+      "name": "STACK_NAME",
+      "type": "text",
+      "message": "Nombre del stack CloudFormation (PascalCase):",
+      "default": "MyServiceStack",
+      "validate": "^[A-Z][A-Za-z0-9]+$"
+    },
+    {
+      "name": "OWNER",
+      "type": "text",
+      "message": "Responsable (tag Responsable):",
+      "default": "ricardogenaro99"
+    },
+    {
+      "name": "AWS_REGION",
+      "type": "select",
+      "message": "Región AWS para .env (el código CDK hoy solo soporta us-east-1 en config.ts):",
+      "choices": ["us-east-1"],
+      "default": "us-east-1"
+    }
+  ],
+  "replacements": [
+    {
+      "files": ["package.json"],
+      "from": "\"name\": \"aws-cdk-nestjs-archetype-template\"",
+      "to": "\"name\": \"{{PROJECT_NAME}}\""
+    },
+    {
+      "files": ["package.json"],
+      "from": "\"description\": \"AWS CDK Archetype Template\"",
+      "to": "\"description\": \"{{PROJECT_DESCRIPTION}}\""
+    },
+    {
+      "files": ["infrastructure/package.json"],
+      "from": "\"name\": \"arq-impl-cdk\"",
+      "to": "\"name\": \"{{PROJECT_NAME}}-infrastructure\""
+    },
+    {
+      "files": ["infrastructure/bin/infrastructure.ts"],
+      "from": "'TemplateCdkBaseStack'",
+      "to": "'{{STACK_NAME}}'"
+    },
+    {
+      "files": ["infrastructure/lib/common/config.ts"],
+      "from": "const repoAbrev = 'ARCHETYPE';",
+      "to": "const repoAbrev = '{{REPO_ABREV}}';"
+    },
+    {
+      "files": ["infrastructure/lib/common/config.ts"],
+      "from": "[TAG.PROYECTO]: 'ARCHETYPE'",
+      "to": "[TAG.PROYECTO]: '{{REPO_ABREV}}'"
+    },
+    {
+      "files": ["infrastructure/lib/common/config.ts"],
+      "from": "[TAG.RESPONSABLE]: 'Antigravity'",
+      "to": "[TAG.RESPONSABLE]: '{{OWNER}}'"
+    },
+    {
+      "files": ["infrastructure/lib/common/config.ts"],
+      "from": "'AWS CDK Archetype Template Stack'",
+      "to": "'{{PROJECT_DESCRIPTION}}'"
+    },
+    {
+      "files": ["infrastructure/lib/construct/storage/bucket.construct.ts"],
+      "from": "aws-cdk-archetype-bucket-",
+      "to": "{{PROJECT_NAME}}-bucket-",
+      "all": true
+    },
+    {
+      "files": ["README.md"],
+      "from": "# AWS CDK + NestJS Archetype Template",
+      "to": "# {{PROJECT_NAME}}"
+    }
+  ],
+  "envSetup": {
+    "source": ".env.example",
+    "target": ".env",
+    "set": {
+      "AWS_REGION": "{{AWS_REGION}}",
+      "AWS_DEFAULT_REGION": "{{AWS_REGION}}",
+      "STAGE": "DESA"
+    }
+  },
+  "hooks": {
+    "postScaffold": ["pnpm install", "pnpm run format"]
+  },
+  "postInstall": {
+    "initGit": true,
+    "initialCommit": "chore: scaffold from aws-cdk-nestjs-archetype-template",
+    "nextSteps": [
+      "Completa las credenciales AWS en .env (o usa AWS_PROFILE)",
+      "Revisa los account IDs por ambiente en infrastructure/lib/common/config.ts",
+      "pnpm run infra:bootstrap (solo la primera vez por cuenta/región)",
+      "pnpm run build && pnpm run infra:deploy",
+      "Copia el nombre de la tabla creada a TASKS_TABLE_NAME en .env y ejecuta pnpm start:local"
+    ]
+  },
+  "cleanup": ["template.config.json"]
+}
