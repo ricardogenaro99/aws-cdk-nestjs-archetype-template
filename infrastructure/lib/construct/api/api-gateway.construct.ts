@@ -12,7 +12,7 @@ export class TemplateRestApi extends apigateway.RestApi {
   public readonly usagePlan: apigateway.IUsagePlan;
 
   constructor(scope: Construct, id: string, props: TemplateRestApiProps) {
-    const apiName = `${config.region.abrev}${config.account.abrev}APIC${props.apiNameSuffix}`;
+    const apiName = `${config.region.abrev}${config.account.abrev}APIC${config.repoAbrev}${props.apiNameSuffix}`;
 
     super(scope, id, {
       deployOptions: {

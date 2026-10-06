@@ -115,7 +115,7 @@
     }
   },
   "hooks": {
-    "postScaffold": ["pnpm install", "pnpm run format"]
+    "postScaffold": ["pnpm install", "pnpm run build", "pnpm run format"]
   },
   "postInstall": {
     "initGit": true,

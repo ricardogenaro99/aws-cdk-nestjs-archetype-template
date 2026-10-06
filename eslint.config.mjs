@@ -8,15 +8,15 @@ export default tseslint.config(
   prettier,
   {
     ignores: [
-      'node_modules/',
-      'dist/',
-      'cdk.out/',
-      'app/',
-      'coverage/',
+      '**/node_modules/**',
+      '**/dist/**',
+      '**/cdk.out/**',
+      'app/**',
+      'coverage/**',
       'prepareBuild.ts',
       'commitlint.config.cjs',
-      'run-cdk.ts'
-    ]
+      'run-cdk.ts',
+    ],
   },
   {
     rules: {
@@ -24,10 +24,10 @@ export default tseslint.config(
       '@typescript-eslint/no-unused-vars': [
         'error',
         {
-          'argsIgnorePattern': '^_',
-          'varsIgnorePattern': '^_'
-        }
-      ]
-    }
-  }
+          argsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+        },
+      ],
+    },
+  },
 );

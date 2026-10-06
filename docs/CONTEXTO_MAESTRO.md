@@ -1,4 +1,5 @@
 # CONTEXTO MAESTRO — SSOT DE INGENIERÍA
+
 ## AWS CDK + NestJS Archetype Template (`aws-cdk-nestjs-archetype-template`)
 
 > **SSOT (Single Source of Truth)** para el arquetipo base y plantilla oficial de microservicios serverless en AWS para **Genaryth** y el ecosistema de **Ricardo Genaro**.  
@@ -11,6 +12,7 @@
 El repositorio `aws-cdk-nestjs-archetype-template` es el **arquetipo maestro de infraestructura y backend serverless** concebido por Ricardo Genaro para Genaryth. Funciona tanto como un microservicio funcional de referencia (`task-manager`) como una plantilla paramétrica de scaffolding compatible con `@ricardogenaro99/scaffolder` (mediante `template.config.json`).
 
 ### Objetivos Clave:
+
 1. **Arranque Ultrarrápido:** Reducir a menos de 5 minutos la creación de un nuevo microservicio backend con infraestructura CloudFormation lista para producción.
 2. **Cold Starts Mínimos:** Uso exclusivo de `NestFactory.createApplicationContext` (sin adaptadores pesados como Express o Fastify en Lambda), preservando Inyección de Dependencias y Arquitectura Hexagonal con consumo mínimo de memoria.
 3. **Gobierno Cloud y Nomenclatura Estricta:** Biblioteca de constructores `Template*` (`TemplateRestApi`, `TemplateLambdaFunction`, `TemplateTable`, etc.) que aplican hashing seguro de identificadores, cifrado obligatorio, políticas de retención de logs escalonadas (`DESA`, `TEST`, `PROD`) y tagging unificado.
@@ -45,9 +47,10 @@ flowchart LR
 ### 2.2 Estructura por Capas (Arquitectura Hexagonal Pragmática)
 
 El código de negocio (`src/[dominio]`) sigue una separación estricta:
+
 - **`domain/`**: Modelos de entidad (`Task`), interfaces de puertos (`TaskRepository`) y servicios de dominio (`TaskDomainService`). Cero acoplamiento a librerías de AWS SDK.
 - **`application/`**: Casos de uso (`TaskService`), validaciones de negocio imperativas (`TaskValidation`), DTOs planos y manejo de excepciones de dominio.
-- **`infrastructure/`**: 
+- **`infrastructure/`**:
   - Adaptadores secundarios: Repositorios concretos (`TaskAwsRepository` con `@aws-sdk/lib-dynamodb`).
   - Adaptadores primarios: Controladores (`TaskController` donde cada método corresponde a una `action`).
   - Módulos NestJS (`TaskModule`) con inyección desacoplada vía tokens string (`@Inject('TaskRepository')`).
@@ -85,6 +88,7 @@ El código de negocio (`src/[dominio]`) sigue una separación estricta:
 ## 3. Modelo de Datos y Persistencia
 
 ### DynamoDB (Tabla de Ejemplo: `TSKMGR001`)
+
 - **Partition Key (`PK`):** `taskId` (String, formato `task-<timestamp>`)
 - **Sort Key (`SK`):** `createdAt` (String ISO-8601)
 - **Billing Mode:** `PAY_PER_REQUEST` (On-Demand)
@@ -109,21 +113,25 @@ El código de negocio (`src/[dominio]`) sigue una separación estricta:
 ## 5. Roadmap de Evolución del Arquetipo
 
 ### Sprint 1: Hardening de Errores y Calidad (Actual)
+
 - [x] Documentación SSOT (`CONTEXTO_MAESTRO.md`, `OPERATING_THREADS.md`, `GEMINI.md`).
 - [ ] Implementar mapeo de errores HTTP en API Gateway para integración no-proxy (traducción de `ValidationException` -> 400 y `BusinessException` -> 422).
 - [ ] Consolidar los duplicados de `LogContext.ts` en `src/common/`.
 - [ ] Configurar suite de pruebas automatizadas con Jest (unitarias para dominio/aplicación).
 
 ### Sprint 2: Compatibilidad y Scaffolder CLI v1.1+
+
 - [ ] Validar y testear reemplazos de `template.config.json` en escenarios multi-módulo.
 - [ ] Agregar soporte para multi-región en `infrastructure/lib/common/config.ts`.
 - [ ] Crear plantilla de tests de integración para Lambdas simuladas.
 
 ### Sprint 3: Observabilidad y Métricas
+
 - [ ] Integrar métricas embebidas (CloudWatch EMF) en `createInstrumentedWrapper`.
 - [ ] Configurar alarmas CloudWatch automáticas en `TemplateLambdaFunction` (errores 5xx, throttling).
 - [ ] Dashboard automático de CloudWatch sintetizado en CDK.
 
 ### Sprint 4: Automatización CI/CD
+
 - [ ] Pipelines de GitHub Actions para validación (`typecheck`, `lint`, `format:check`).
 - [ ] Despliegue continuo condicional a cuentas de AWS por branch (`develop` -> DESA, `main` -> PROD).

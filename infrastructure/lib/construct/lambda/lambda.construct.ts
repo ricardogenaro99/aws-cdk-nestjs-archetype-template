@@ -13,7 +13,7 @@ export interface TemplateLambdaFunctionProps extends Partial<FunctionProps> {
 
 export class TemplateLambdaFunction extends Function {
   constructor(scope: Construct, id: string, props: TemplateLambdaFunctionProps) {
-    const functionName = `${config.region.abrev}${config.account.abrev}LMBFACT${props.functionNameSuffix}`;
+    const functionName = `${config.region.abrev}${config.account.abrev}LMBFACT${config.repoAbrev}${props.functionNameSuffix}`;
     const logGroupName = `/aws/lambda/${functionName}`;
 
     const environment = {

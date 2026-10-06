@@ -21,5 +21,6 @@ export interface ConfigByStage {
   lambda: {
     logRetention: RetentionDays;
   };
+  repoAbrev: string;
   ssmRootPath: string;
 }

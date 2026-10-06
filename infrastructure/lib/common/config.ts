@@ -67,6 +67,7 @@ const config: ConfigByStage = {
   region,
   account,
   lambda,
+  repoAbrev,
   ssmRootPath,
 };
 

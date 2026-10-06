@@ -11,4 +11,5 @@ export * from './construct/lambda/lambda.construct';
 export * from './construct/orchestration/state-machine.construct';
 export * from './construct/api/api-gateway.construct';
 export * from './construct/database/table.construct';
+export * from './construct/database/aurora-serverless.construct';
 export * from './construct/api/lambda-integration.construct';

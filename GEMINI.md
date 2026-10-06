@@ -1,4 +1,5 @@
 # GEMINI.md — REGLAS DEL PROYECTO & SSOT
+
 ## Repositorio: `aws-cdk-nestjs-archetype-template`
 
 Este archivo es la directiva primaria de contexto y comportamiento para cualquier agente de IA o desarrollador que opere dentro de este repositorio.
@@ -8,6 +9,7 @@ Este archivo es la directiva primaria de contexto y comportamiento para cualquie
 ## 1. Fuente Única de Verdad (SSOT)
 
 Antes de realizar modificaciones estructurales, consulta la documentación viva:
+
 - **Especificación Técnica y Arquitectura:** [`docs/CONTEXTO_MAESTRO.md`](docs/CONTEXTO_MAESTRO.md)
 - **Detalle de Funcionamiento Real:** [`ARCHITECTURE.md`](ARCHITECTURE.md)
 - **Catálogo de Hilos Operativos:** [`docs/OPERATING_THREADS.md`](docs/OPERATING_THREADS.md)

@@ -133,6 +133,27 @@ pnpm start:local
 | `pnpm run lint` / `lint:fix`       | ESLint (flat config, `typescript-eslint` recommended + prettier).                                             |
 | `pnpm run format` / `format:check` | Prettier sobre `ts, js, json, md, yml, yaml`.                                                                 |
 
+### 📦 Gestión con PNPM Workspaces (`pnpm --filter`)
+
+El repositorio está estructurado como un monorepo administrado con **pnpm workspaces** (`pnpm-workspace.yaml`), separando el código fuente de aplicación (`aws-cdk-nestjs-archetype-template` en la raíz) de la infraestructura CDK (`arq-impl-cdk` en `infrastructure/`).
+
+Para interactuar de manera precisa con un paquete específico sin salir de la raíz del monorepo, usa la bandera `--filter`:
+
+```bash
+# Ejecutar comandos de infraestructura aislados
+pnpm --filter arq-impl-cdk run build
+pnpm --filter arq-impl-cdk run synth
+pnpm --filter arq-impl-cdk run diff
+pnpm --filter arq-impl-cdk run deploy
+
+# Agregar o actualizar dependencias en un paquete específico
+pnpm --filter arq-impl-cdk add <dependencia>
+pnpm --filter aws-cdk-nestjs-archetype-template add <dependencia>
+
+# Ejecutar scripts en paralelo o recursivamente en todos los workspaces
+pnpm -r run build
+```
+
 ---
 
 ## 🔐 Variables de entorno
