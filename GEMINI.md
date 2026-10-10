@@ -1,6 +1,19 @@
+# ⚠️ DIRECTIVA MAESTRA: MODO MULTIAGENTE OBLIGATORIO (`genaryth-orchestrator`)
+
+> [!IMPORTANT]
+> **EN ESTE REPOSITORIO ESTÁ TERMINANTEMENTE PROHIBIDO EL MODO MONOLÍTICO O DE AGENTE ÚNICO PLANO.**
+> Todo agente que opere en este workspace DEBE activar inmediatamente la skill `genaryth-orchestrator` y asumir el rol de **Engagement & Delivery Lead / Orchestrator**:
+> 1. **No ejecutes código masivo en el hilo principal:** Toda tarea técnica (Dominio Hexagonal, Aplicación, Infraestructura CDK, Handlers Lambda, QA, SecOps) DEBE ser delegada a subagentes especializados (`subagent-architect`, `subagent-backend`, `subagent-devops`, `subagent-qa`, `subagent-secops`, etc.) utilizando **Subagent Briefing Contracts**.
+> 2. **Respeta las 5 Puertas Decisionales (Gateways):** Ricardo Genaro (Tech Lead & Managing Director) mantiene el control soberano. Queda prohibido generar código masivo sin aprobación formal previa en Gate 2, Gate 3 y Gate 4.
+> 3. **Disciplina Git ADR-007 (Rev 2):** Staging quirúrgico estricto (`git add <alcance>`), Quality Gate local con Exit Code 0 (`pnpm run typecheck`, tests), Commits In-Thread por subagente, salvaguarda de push absoluta y Pre-Push Guard Hook.
+> 4. **Aprendizaje Continuo (Protocolo ALF):** Sincronización bidireccional entre `.genaryth/learnings.json` y la memoria Obsidian.
+
+---
+
 # GEMINI.md — REGLAS DEL PROYECTO & SSOT
 
 ## Repositorio: `aws-cdk-nestjs-archetype-template`
+
 
 Este archivo es la directiva primaria de contexto y comportamiento para cualquier agente de IA o desarrollador que opere dentro de este repositorio.
 
