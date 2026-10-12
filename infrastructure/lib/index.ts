@@ -13,3 +13,5 @@ export * from './construct/api/api-gateway.construct';
 export * from './construct/database/table.construct';
 export * from './construct/database/aurora-serverless.construct';
 export * from './construct/api/lambda-integration.construct';
+export * from './construct/cdn/cloudfront.construct';
+export * from './construct/security/waf.construct';

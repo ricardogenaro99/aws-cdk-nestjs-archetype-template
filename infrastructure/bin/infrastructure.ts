@@ -8,9 +8,15 @@ import * as path from 'path';
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
 import { InfrastructureStack } from '../lib/infrastructure.stack';
+import { config } from '../lib/common/config';
+import { Stage } from '../lib/common/enum';
 
 const app = new cdk.App();
 
-new InfrastructureStack(app, 'TemplateCdkBaseStack', {
+const serviceName = config.service.name || 'TemplateCdkBaseStack';
+const stackName = config.stage === Stage.PROD ? serviceName : `${serviceName}-${config.stage}`;
+
+new InfrastructureStack(app, stackName, {
   description: 'AWS CDK Archetype Base Stack - Deploy template resources',
 });
+

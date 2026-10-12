@@ -11,6 +11,7 @@ export class TemplateLambdaIntegration extends apigateway.LambdaIntegration {
     const successCode = props.statusCode ?? '200';
     super(handler, {
       proxy: false,
+      allowTestInvoke: false,
       requestTemplates: {
         'application/json': `{
           "action": "${props.action}",

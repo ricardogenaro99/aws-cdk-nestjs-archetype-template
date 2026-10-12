@@ -26,6 +26,7 @@
     "infra:bootstrap": "ts-node run-cdk.ts bootstrap",
     "infra:synth": "pnpm run build && ts-node run-cdk.ts synth",
     "infra:deploy": "pnpm run build && ts-node run-cdk.ts deploy",
+    "infra:deploy:fast": "pnpm run build && ts-node run-cdk.ts deploy --hotswap",
     "infra:diff": "pnpm run build && ts-node run-cdk.ts diff",
     "infra:destroy": "ts-node run-cdk.ts destroy",
     "format": "prettier --write \"**/*.{ts,js,json,md,yml,yaml}\"",

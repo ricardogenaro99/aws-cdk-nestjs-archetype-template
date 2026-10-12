@@ -1,9 +1,11 @@
 import { Stack, StackProps } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
-import { TemplateRestApi } from './index';
+import { TemplateCloudFront, TemplateRestApi } from './index';
 import { TaskManagerInfra } from './module/task-manager/task-manager.infra';
 
 export class InfrastructureStack extends Stack {
+  public readonly cloudFront?: TemplateCloudFront;
+
   constructor(scope: Construct, id: string, props?: StackProps) {
     super(scope, id, props);
 
@@ -17,6 +19,16 @@ export class InfrastructureStack extends Stack {
     });
 
     // =========================================================================
+    // EDGE CDN (CLOUDFRONT CONDICIONAL)
+    // =========================================================================
+    // Instanciado únicamente si ENABLE_CLOUDFRONT='true' para prevenir LRN-006 en cuentas nuevas
+    if (process.env.ENABLE_CLOUDFRONT?.toLowerCase() === 'true') {
+      this.cloudFront = new TemplateCloudFront(this, 'PerimeterCloudFront', {
+        restApi: apiGateway,
+      });
+    }
+
+    // =========================================================================
     // MÓDULOS DE INFRAESTRUCTURA DE NEGOCIO (FEATURES)
     // =========================================================================
     // Inicialización de recursos aislados del dominio Task Manager.
@@ -25,3 +37,4 @@ export class InfrastructureStack extends Stack {
     });
   }
 }
+
