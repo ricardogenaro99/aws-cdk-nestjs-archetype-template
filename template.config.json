@@ -115,7 +115,14 @@
     }
   },
   "hooks": {
-    "postScaffold": ["pnpm install", "pnpm run build", "pnpm run format"]
+    "postScaffold": [
+      "pnpm install",
+      "pnpm run build",
+      "[ -L CLAUDE.md ] || ln -s GEMINI.md CLAUDE.md",
+      "[ -L AGENTS.md ] || ln -s GEMINI.md AGENTS.md",
+      "[ -L .cursorrules ] || ln -s GEMINI.md .cursorrules",
+      "pnpm run format"
+    ]
   },
   "postInstall": {
     "initGit": true,

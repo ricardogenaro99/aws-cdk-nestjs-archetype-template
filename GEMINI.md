@@ -8,6 +8,7 @@
 > 3. **Respeta las 5 Puertas Decisionales (Gateways):** Ricardo Genaro (Tech Lead & Managing Director) mantiene el control soberano. Queda prohibido generar código masivo sin aprobación formal previa en Gate 2, Gate 3 y Gate 4.
 > 4. **Disciplina Git ADR-007 (Rev 2):** Staging quirúrgico estricto (`git add <alcance>`), Quality Gate local con Exit Code 0 (`pnpm run typecheck`, tests), Commits In-Thread por subagente, salvaguarda de push absoluta y Pre-Push Guard Hook.
 > 5. **Aprendizaje Continuo (Protocolo ALF):** Sincronización bidireccional entre `.genaryth/learnings.json` y la memoria Obsidian.
+> 6. **Gobernanza Universal Multi-Agente (ADR-010):** `GEMINI.md` es el archivo canónico SSOT en la raíz. La compatibilidad con Claude Code, Cursor y OpenCode se garantiza mediante la Tríada de Symlinks Relativos POSIX (`CLAUDE.md`, `AGENTS.md`, `.cursorrules`).
 
 ---
 
