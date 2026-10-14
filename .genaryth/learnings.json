@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "project_id": "aws-cdk-nestjs-archetype-template",
+  "version": "1.0.0",
+  "updated_at": "2026-10-14T08:30:00Z",
+  "governance": {
+    "framework": "Genaryth Venture Studio - Protocolo ALF (Agent Learning & Feedback)",
+    "curator": "Genaryth Orchestrator & Ricardo Genaro (Tech Lead)",
+    "storage_mode": "DUAL_TIER (Local Repo .genaryth/learnings.json + Obsidian Layer 3 mistakes.md)"
+  },
+  "heuristics": [
+    {
+      "id": "LRN-001",
+      "timestamp": "2026-10-12T01:30:00Z",
+      "hilo": "hilo_3_devops",
+      "area": "cloud-security",
+      "ticket": "OPS-ARCH-01",
+      "author": "subagent-devops",
+      "context": "Configuración de reglas y WebACL en AWS WAFv2 para API Gateway REST",
+      "finding": "CloudFormation arroja error 400 'Error reason: The description cannot contain parentheses or invalid regex chars' si el campo description contiene paréntesis ()",
+      "root_cause": "AWS WAFv2 impone un regex estricto en la propiedad description de CfnWebACL",
+      "rule": "En CfnWebACL y CfnRuleGroup de AWS WAFv2, usar descripciones puramente alfanuméricas en inglés sin paréntesis ni signos especiales",
+      "scope": "GENARYTH_GLOBAL"
+    },
+    {
+      "id": "LRN-002",
+      "timestamp": "2026-10-12T01:30:00Z",
+      "hilo": "hilo_3_devops",
+      "area": "cloud-iam",
+      "ticket": "OPS-ARCH-01",
+      "author": "subagent-devops",
+      "context": "Integración declarativa de API Gateway REST con AWS Lambda vía TemplateLambdaIntegration",
+      "finding": "Al superar ~20 métodos o rutas declarativas, el stack falla con error de CloudFormation por superar el límite duro de política de recurso de Lambda (20,480 bytes)",
+      "root_cause": "Por defecto, LambdaIntegration genera permisos IAM duplicados para invocación en consola (test-invoke-stage)",
+      "rule": "Configurar siempre 'allowTestInvoke: false' en LambdaIntegration para reducir a la mitad los permisos generados en la política de la función",
+      "scope": "GENARYTH_GLOBAL"
+    },
+    {
+      "id": "LRN-003",
+      "timestamp": "2026-10-12T01:30:00Z",
+      "hilo": "hilo_3_devops",
+      "area": "cloud-cdn",
+      "ticket": "OPS-ARCH-01",
+      "author": "subagent-devops",
+      "context": "Despliegue perimetral con AWS CloudFront en cuentas AWS nuevas o entornos de desarrollo",
+      "finding": "Crear distribuciones CloudFront de forma incondicional provoca error 403 AccessDenied (Your account must be verified before you can add new CloudFront resources) en cuentas nuevas",
+      "root_cause": "Verificación pendiente de cuotas de CloudFront en cuentas AWS recientemente creadas",
+      "rule": "Hacer condicional el construct de CloudFront con process.env.ENABLE_CLOUDFRONT === 'true', desactivado por defecto en DESA/TEST",
+      "scope": "GENARYTH_GLOBAL"
+    },
+    {
+      "id": "LRN-004",
+      "timestamp": "2026-10-12T01:35:00Z",
+      "hilo": "hilo_3_devops",
+      "area": "git-governance",
+      "ticket": "OPS-ARCH-01",
+      "author": "subagent-devops",
+      "context": "Validación de commits con commitlint bajo estándar Conventional Commits",
+      "finding": "El hook commit-msg rechazó el commit porque el header superaba los 100 caracteres al incluir ticket extenso en una sola línea",
+      "root_cause": "Regla 'header-max-length: [2, always, 100]' en commitlint",
+      "rule": "Mantener el header del commit por debajo de 100 caracteres y colocar tickets y detalles en el cuerpo del mensaje",
+      "scope": "PROJECT_LOCAL"
+    },
+    {
+      "id": "LRN-005",
+      "timestamp": "2026-10-14T02:50:00Z",
+      "hilo": "hilo_3_devops",
+      "area": "security-guardrails",
+      "ticket": "OPS-01",
+      "author": "subagent-devops",
+      "context": "Intercepción y verificación de pre-escritura con Execution Harness (ADR-011)",
+      "finding": "Intentar escribir credenciales o cadenas que asemejan claves secretas o certificados en código fuente es bloqueado por el harness en pre-commit",
+      "root_cause": "Guardrails de seguridad de ADR-011 contra fuga de secretos en repositorios",
+      "rule": "Nunca hardcodear credenciales, API keys o tokens; utilizar siempre SSM Parameter Store, Secrets Manager o .env local excluido de git",
+      "scope": "GENARYTH_GLOBAL"
+    }
+  ]
+}

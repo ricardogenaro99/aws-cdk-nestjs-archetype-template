@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "project_id": "aws-cdk-nestjs-archetype-template",
+  "project_name": "AWS CDK + NestJS Serverless Archetype Template",
+  "version": "1.0.0",
+  "updated_at": "2026-10-14T08:30:00Z",
+  "tech_lead": "Ricardo Genaro",
+  "current_state": "ACTIVE",
+  "active_phase": "PRODUCTION_HARDENING",
+  "gateways": {
+    "gate_1_business_review": { "status": "APPROVED", "approved_by": "Ricardo Genaro" },
+    "gate_2_requirements_review": { "status": "APPROVED", "approved_by": "Ricardo Genaro" },
+    "gate_3_architecture_review": { "status": "APPROVED", "approved_by": "Ricardo Genaro" },
+    "gate_4_plan_review": { "status": "APPROVED", "approved_by": "Ricardo Genaro" },
+    "gate_5_acceptance_review": { "status": "APPROVED", "approved_by": "Ricardo Genaro" }
+  },
+  "tech_stack": {
+    "runtime": "Node.js (>=22.0.0)",
+    "package_manager": "pnpm (workspaces)",
+    "framework": "NestJS 11 (ApplicationContext DI sin HTTP adapter)",
+    "cloud_infrastructure": "AWS CDK v2",
+    "cloud_services": [
+      "AWS Lambda (nodejs22.x)",
+      "Amazon API Gateway REST (no-proxy + VTL)",
+      "Amazon DynamoDB",
+      "Amazon CloudFront (Edge CDN condicional)",
+      "AWS WAFv2",
+      "AWS Systems Manager (SSM Parameter Store)",
+      "AWS Secrets Manager"
+    ],
+    "language": "TypeScript 5.3+",
+    "build_command": "pnpm run build",
+    "typecheck_command": "pnpm run typecheck",
+    "lint_command": "pnpm run lint",
+    "test_command": "pnpm run typecheck",
+    "infra_synth_command": "pnpm run infra:synth",
+    "infra_deploy_command": "pnpm run infra:deploy",
+    "infra_deploy_fast_command": "pnpm run infra:deploy:fast"
+  },
+  "threads": {
+    "hilo_1_product": {
+      "name": "Product & Strategy",
+      "role": "Lead Architect & Custodian",
+      "active_ticket": null,
+      "completed_tickets": ["DOC-01", "SSOT-01"]
+    },
+    "hilo_2_backend": {
+      "name": "Backend & Hexagonal Architecture",
+      "role": "Tech Lead Backend",
+      "active_ticket": null,
+      "completed_tickets": ["BE-01", "BE-02"]
+    },
+    "hilo_3_devops": {
+      "name": "DevOps, Cloud & CI/CD",
+      "role": "Cloud Architect & DevOps Lead",
+      "active_ticket": null,
+      "completed_tickets": ["OPS-ARCH-01", "OPS-01"]
+    },
+    "hilo_4_qa": {
+      "name": "QA & Cloud Performance",
+      "role": "QA & Performance Specialist",
+      "active_ticket": null,
+      "completed_tickets": []
+    },
+    "hilo_5_dx_scaffold": {
+      "name": "Scaffolding & Developer Experience",
+      "role": "Developer Experience Lead",
+      "active_ticket": null,
+      "completed_tickets": ["DX-01", "ADR-010"]
+    }
+  },
+  "commit_log": [
+    {
+      "hash": "41574ce",
+      "ticket": "OPS-ARCH-01",
+      "author": "subagent-devops",
+      "summary": "feat(infra): add resilient cdn, waf, lambda limit & fast deploy"
+    },
+    {
+      "hash": "96b44b0",
+      "ticket": "ADR-010",
+      "author": "antigravity",
+      "summary": "feat(archetype): implement universal agent governance symlinks (ADR-010)"
+    },
+    {
+      "hash": "ee31020",
+      "ticket": "ADR-011",
+      "author": "Ricardo Genaro",
+      "summary": "feat(governance): adopt Execution Harness & Guardrails directive (ADR-011)"
+    },
+    {
+      "hash": "6c4299f",
+      "ticket": "OPS-01",
+      "author": "Ricardo Genaro",
+      "summary": "feat(harness): integrate local project harness enforcer and pre-commit guard (OPS-01)"
+    }
+  ]
+}
