@@ -33,6 +33,8 @@
     "format:check": "prettier --check \"**/*.{ts,js,json,md,yml,yaml}\"",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
+    "harness:check": "node .genaryth/harness/enforcer.mjs",
+    "harness:check:staged": "node .genaryth/harness/enforcer.mjs --staged",
     "prepare": "husky"
   },
   "devDependencies": {

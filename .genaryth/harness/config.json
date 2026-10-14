@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "version": "2.0.0",
+  "project": "aws-cdk-nestjs-archetype-template",
+  "harness": {
+    "enabled": true,
+    "enforceHexagonalDomainPurity": true,
+    "enforceNoAnyInDtos": true,
+    "enforceRscBoundaries": false,
+    "blockSecretLeaks": true,
+    "customForbiddenImports": [
+      "@nestjs/",
+      "@prisma/client",
+      "typeorm",
+      "express",
+      "fastify"
+    ],
+    "gitSafeguards": {
+      "blockWildcardStaging": true,
+      "blockCommitFlagA": true,
+      "blockDirectPush": true
+    }
+  }
+}
