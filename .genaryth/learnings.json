@@ -73,6 +73,19 @@
       "root_cause": "Guardrails de seguridad de ADR-011 contra fuga de secretos en repositorios",
       "rule": "Nunca hardcodear credenciales, API keys o tokens; utilizar siempre SSM Parameter Store, Secrets Manager o .env local excluido de git",
       "scope": "GENARYTH_GLOBAL"
+    },
+    {
+      "id": "LRN-006",
+      "timestamp": "2026-10-16T17:45:00Z",
+      "hilo": "hilo_3_devops",
+      "area": "cloud-iam",
+      "ticket": "OPS-03",
+      "author": "subagent-devops",
+      "context": "Límite de 20 KB en políticas de recursos Lambda con múltiples métodos de API Gateway",
+      "finding": "Incluso con allowTestInvoke: false, al superar ~30 rutas declarativas CloudFormation falla por rebasar la cuota de 20,480 bytes si los permisos se generan a nivel de método",
+      "root_cause": "scopePermissionToMethod activado por defecto en CDK genera una declaración Statement por método/recurso",
+      "rule": "Inyectar siempre scopePermissionToMethod: false en LambdaIntegration para colapsar los permisos a un único statement wildcard (arn:.../*/*/*), reduciendo el tamaño en un 97%",
+      "scope": "GENARYTH_GLOBAL"
     }
   ]
 }

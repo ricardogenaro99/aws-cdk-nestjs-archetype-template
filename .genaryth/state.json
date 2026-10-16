@@ -54,7 +54,7 @@
       "name": "DevOps, Cloud & CI/CD",
       "role": "Cloud Architect & DevOps Lead",
       "active_ticket": null,
-      "completed_tickets": ["OPS-ARCH-01", "OPS-01"]
+      "completed_tickets": ["OPS-ARCH-01", "OPS-01", "OPS-03"]
     },
     "hilo_4_qa": {
       "name": "QA & Cloud Performance",
@@ -93,6 +93,18 @@
       "ticket": "OPS-01",
       "author": "Ricardo Genaro",
       "summary": "feat(harness): integrate local project harness enforcer and pre-commit guard (OPS-01)"
+    },
+    {
+      "hash": "f6faf5a",
+      "ticket": "SSOT-02",
+      "author": "antigravity",
+      "summary": "feat(governance): initialize state and learnings SSOT under ALF protocol (SSOT-02)"
+    },
+    {
+      "hash": "057da93",
+      "ticket": "OPS-03",
+      "author": "subagent-devops",
+      "summary": "fix(archetype): integrate lambda 20kb wildcard, universal cors and logging safeguards (OPS-03)"
     }
   ]
 }
