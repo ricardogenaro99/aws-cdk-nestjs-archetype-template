@@ -13,7 +13,8 @@ const originalConsoleError = console.error;
  */
 const formatConsoleMessage = (level: string, args: any[]): string => {
   const store = logContextStorage.getStore();
-  const requestId = store?.requestId || process.env.AWS_REQUEST_ID || 'NO_REQUEST_ID';
+  const rawId = store?.requestId || process.env.AWS_REQUEST_ID;
+  const requestId = rawId && rawId !== 'undefined' ? rawId : 'NO_REQUEST_ID';
   const timestamp = new Date().toISOString();
 
   const message = args

@@ -12,6 +12,7 @@ export class TemplateLambdaIntegration extends apigateway.LambdaIntegration {
     super(handler, {
       proxy: false,
       allowTestInvoke: false,
+      scopePermissionToMethod: false,
       requestTemplates: {
         'application/json': `{
           "action": "${props.action}",

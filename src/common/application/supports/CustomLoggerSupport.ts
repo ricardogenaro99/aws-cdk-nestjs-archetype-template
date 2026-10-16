@@ -6,8 +6,8 @@ export class CustomLoggerSupport implements LoggerService {
   contextLog: string;
   contextRequest?: object;
   constructor(contextLog = '', contextRequest?: any) {
-    if (!process.env.AWS_REQUEST_ID && contextRequest) {
-      process.env.AWS_REQUEST_ID = contextRequest?.awsRequestId;
+    if (!process.env.AWS_REQUEST_ID && contextRequest?.awsRequestId && contextRequest.awsRequestId !== 'undefined') {
+      process.env.AWS_REQUEST_ID = contextRequest.awsRequestId;
     }
     this.contextLog = contextLog;
     this.contextRequest = contextRequest;
@@ -45,8 +45,8 @@ export class CustomLoggerSupport implements LoggerService {
 
     // Recuperar el Request ID desde AsyncLocalStorage como prioridad
     const store = logContextStorage.getStore();
-    const contextRequestId =
-      contextRequest?.awsRequestId || store?.requestId || process.env.AWS_REQUEST_ID || 'NO_REQUEST_ID';
+    const rawId = contextRequest?.awsRequestId || store?.requestId || process.env.AWS_REQUEST_ID;
+    const contextRequestId = rawId && rawId !== 'undefined' ? rawId : 'NO_REQUEST_ID';
 
     // Helper interno para formatear cualquier parámetro de forma segura
     const safeFormat = (item: any): string => {

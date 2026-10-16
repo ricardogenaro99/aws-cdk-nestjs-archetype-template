@@ -1,4 +1,4 @@
-import { Stack, StackProps } from 'aws-cdk-lib';
+import { Stack, StackProps, CfnOutput } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import { TemplateCloudFront, TemplateRestApi } from './index';
 import { TaskManagerInfra } from './module/task-manager/task-manager.infra';
@@ -34,6 +34,27 @@ export class InfrastructureStack extends Stack {
     // Inicialización de recursos aislados del dominio Task Manager.
     new TaskManagerInfra(this, 'TaskManagerModule', {
       apiGateway,
+    });
+
+    // =========================================================================
+    // OUTPUTS DE INFRAESTRUCTURA (DX & CI/CD)
+    // =========================================================================
+    new CfnOutput(this, 'ApiGatewayUrlOutput', {
+      value: apiGateway.url,
+      description: 'URL base del API Gateway REST desplegado',
+      exportName: `${this.stackName}-ApiUrl`,
+    });
+
+    new CfnOutput(this, 'ApiGatewayIdOutput', {
+      value: apiGateway.restApiId,
+      description: 'Identificador único de API Gateway en AWS',
+      exportName: `${this.stackName}-ApiId`,
+    });
+
+    new CfnOutput(this, 'ApiGatewayStageOutput', {
+      value: apiGateway.deploymentStage.stageName,
+      description: 'Etapa / Stage activa del despliegue',
+      exportName: `${this.stackName}-ApiStage`,
     });
   }
 }
