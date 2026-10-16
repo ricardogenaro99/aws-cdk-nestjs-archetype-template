@@ -10,25 +10,35 @@ export interface TemplateRestApiProps extends Omit<apigateway.RestApiProps, 'res
 export class TemplateRestApi extends apigateway.RestApi {
   public readonly apiKey: apigateway.IApiKey;
   public readonly usagePlan: apigateway.IUsagePlan;
-
   constructor(scope: Construct, id: string, props: TemplateRestApiProps) {
-    const apiName = `${config.region.abrev}${config.account.abrev}APIC${config.repoAbrev}${props.apiNameSuffix}`;
+    const { deployOptions, defaultMethodOptions, defaultCorsPreflightOptions, apiNameSuffix, ...restProps } = props;
+
+    const apiSuffix = apiNameSuffix.startsWith(config.repoAbrev)
+      ? apiNameSuffix
+      : `${config.repoAbrev}${apiNameSuffix}`;
+    const apiName = `${config.region.abrev}${config.account.abrev}APIC${apiSuffix}`;
 
     super(scope, id, {
+      ...restProps,
+      restApiName: apiName,
       deployOptions: {
-        stageName: config.environments,
+        stageName: deployOptions?.stageName ?? config.environments,
+        throttlingRateLimit: 100,
+        throttlingBurstLimit: 200,
+        metricsEnabled: true,
+        ...deployOptions,
       },
       defaultMethodOptions: {
         authorizationType: apigateway.AuthorizationType.IAM,
         apiKeyRequired: true,
+        ...defaultMethodOptions,
       },
       defaultCorsPreflightOptions: {
         allowHeaders: apigateway.Cors.DEFAULT_HEADERS,
         allowMethods: apigateway.Cors.ALL_METHODS,
         allowOrigins: apigateway.Cors.ALL_ORIGINS,
+        ...defaultCorsPreflightOptions,
       },
-      ...props,
-      restApiName: apiName,
     });
 
     this.apiKey = new apigateway.ApiKey(this, 'ApiKey', {
