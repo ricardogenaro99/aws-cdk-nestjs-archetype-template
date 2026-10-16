@@ -16,6 +16,7 @@ export default tseslint.config(
       'prepareBuild.ts',
       'commitlint.config.cjs',
       'run-cdk.ts',
+      '.genaryth/**',
     ],
   },
   {
