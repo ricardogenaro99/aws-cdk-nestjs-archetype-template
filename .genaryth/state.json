@@ -54,7 +54,7 @@
       "name": "DevOps, Cloud & CI/CD",
       "role": "Cloud Architect & DevOps Lead",
       "active_ticket": null,
-      "completed_tickets": ["OPS-ARCH-01", "OPS-01", "OPS-03", "OPS-04"]
+      "completed_tickets": ["OPS-ARCH-01", "OPS-01", "OPS-03", "OPS-04", "OPS-05"]
     },
     "hilo_4_qa": {
       "name": "QA & Cloud Performance",
@@ -111,6 +111,12 @@
       "ticket": "OPS-04",
       "author": "subagent-devops",
       "summary": "feat(archetype): adopt enterprise package scoping and port 3001 segregation (ADR-013)"
+    },
+    {
+      "hash": "96f45f7",
+      "ticket": "OPS-05",
+      "author": "subagent-devops",
+      "summary": "refactor(scripts): streamline package scripts, unify typescript and align docs"
     }
   ]
 }
