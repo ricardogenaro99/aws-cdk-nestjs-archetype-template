@@ -132,7 +132,7 @@
       "Revisa los account IDs por ambiente en infrastructure/lib/common/config.ts",
       "pnpm run infra:bootstrap (solo la primera vez por cuenta/región)",
       "pnpm run build && pnpm run infra:deploy",
-      "Copia el nombre de la tabla creada a TASKS_TABLE_NAME en .env y ejecuta pnpm start:local"
+      "Copia el nombre de la tabla creada a TASKS_TABLE_NAME en .env y ejecuta pnpm run dev"
     ]
   },
   "cleanup": ["template.config.json"]

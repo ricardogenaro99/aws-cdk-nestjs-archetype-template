@@ -74,7 +74,7 @@ El repositorio cuenta con hooks de Husky (`pre-commit` con `tsc` y `commit-msg` 
 ```bash
 # Desarrollo local
 pnpm install
-pnpm start:local
+pnpm run dev
 
 # Verificación de calidad y tipos
 pnpm run typecheck

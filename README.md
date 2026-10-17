@@ -66,7 +66,7 @@ pnpm run build             # asegura que /app tenga el último código
 pnpm run infra:deploy
 
 # 4. Copiar el nombre de la tabla creada a TASKS_TABLE_NAME en .env y levantar local
-pnpm start:local
+pnpm run dev
 ```
 
 ---
@@ -121,17 +121,19 @@ pnpm start:local
 
 | Script                             | Qué hace realmente                                                                                            |
 | ---------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| `pnpm install`                     | Instala workspaces y ejecuta `postinstall` → `pnpm run build`.                                                |
-| `pnpm run build`                   | `prebuild` (`tsc` de `src/` → `app/`) → `prepareBuild.ts` → `postbuild` (`npm install --omit=dev` en `app/`). |
-| `pnpm run tsc` / `tsc:watch`       | Compilación TypeScript de `src/` (sin empaquetar).                                                            |
-| `pnpm run dev` / `pnpm start:local`| Servidor Express con `node --watch` (reinicia al cambiar archivos) en `PORT` o `3001` (ADR-013).             |
+| `pnpm install`                     | Instala workspaces y dependencias (`pnpm`).                                                                   |
+| `pnpm run build`                   | Compila `src/` (`tsc`) y genera empaquetado optimizado en `/app` (`prepareBuild.ts` + `package:install`).     |
+| `pnpm run dev`                     | Servidor Express con `node --watch` (recarga automática) en `PORT` o `3001` (ADR-013).                         |
+| `pnpm run typecheck`               | Verificación de tipos TypeScript (`tsc --noEmit`) en raíz y workspace `infrastructure`.                       |
 | `pnpm run infra:bootstrap`         | `cdk bootstrap` vía `run-cdk.ts`.                                                                             |
-| `pnpm run infra:synth`             | `cdk synth` → `infrastructure/cdk.out/`.                                                                      |
-| `pnpm run infra:diff`              | `cdk diff` contra lo desplegado.                                                                              |
-| `pnpm run infra:deploy`            | `cdk deploy`. **No recompila `app/`**: ejecuta `pnpm run build` antes.                                        |
+| `pnpm run infra:synth`             | `pnpm run build` y genera `cdk.out/` (`cdk synth`).                                                           |
+| `pnpm run infra:diff`              | `pnpm run build` y compara cambios contra CloudFormation (`cdk diff`).                                         |
+| `pnpm run infra:deploy`            | `pnpm run build` y despliega infraestructura y Lambdas en AWS (`cdk deploy`).                                 |
+| `pnpm run infra:deploy:fast`       | `pnpm run build` y despliega con hotswap (`cdk deploy --hotswap`).                                             |
 | `pnpm run infra:destroy`           | `cdk destroy`.                                                                                                |
 | `pnpm run lint` / `lint:fix`       | ESLint (flat config, `typescript-eslint` recommended + prettier).                                             |
 | `pnpm run format` / `format:check` | Prettier sobre `ts, js, json, md, yml, yaml`.                                                                 |
+| `pnpm run harness:check`           | Enforcer local de seguridad, escaneo de secretos y límites arquitectónicos.                                   |
 
 ### 📦 Gestión con PNPM Workspaces (`pnpm --filter`)
 
@@ -197,8 +199,6 @@ Definida en [`task-manager.infra.ts`](infrastructure/lib/module/task-manager/tas
 ```bash
 # Iniciar con recarga automática
 pnpm run dev
-# o alternativamente:
-pnpm start:local
 ```
 
 - Levanta Express en `http://localhost:3001` y monta automáticamente cada archivo `server-local/modules/*.local.ts` que exporte `path`, `router`, `initialize`, `cleanup` y `printHelp`.
