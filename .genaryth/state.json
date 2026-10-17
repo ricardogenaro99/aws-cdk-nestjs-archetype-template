@@ -54,7 +54,7 @@
       "name": "DevOps, Cloud & CI/CD",
       "role": "Cloud Architect & DevOps Lead",
       "active_ticket": null,
-      "completed_tickets": ["OPS-ARCH-01", "OPS-01", "OPS-03"]
+      "completed_tickets": ["OPS-ARCH-01", "OPS-01", "OPS-03", "OPS-04"]
     },
     "hilo_4_qa": {
       "name": "QA & Cloud Performance",
@@ -105,6 +105,12 @@
       "ticket": "OPS-03",
       "author": "subagent-devops",
       "summary": "fix(archetype): integrate lambda 20kb wildcard, universal cors and logging safeguards (OPS-03)"
+    },
+    {
+      "hash": "83bd729",
+      "ticket": "OPS-04",
+      "author": "subagent-devops",
+      "summary": "feat(archetype): adopt enterprise package scoping and port 3001 segregation (ADR-013)"
     }
   ]
 }

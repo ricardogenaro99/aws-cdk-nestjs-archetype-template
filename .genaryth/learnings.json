@@ -86,6 +86,19 @@
       "root_cause": "scopePermissionToMethod activado por defecto en CDK genera una declaración Statement por método/recurso",
       "rule": "Inyectar siempre scopePermissionToMethod: false en LambdaIntegration para colapsar los permisos a un único statement wildcard (arn:.../*/*/*), reduciendo el tamaño en un 97%",
       "scope": "GENARYTH_GLOBAL"
+    },
+    {
+      "id": "LRN-007",
+      "timestamp": "2026-10-17T11:45:00Z",
+      "hilo": "hilo_3_devops",
+      "area": "dx-standards",
+      "ticket": "OPS-04",
+      "author": "subagent-devops",
+      "context": "Desarrollo local en ecosistemas multi-repositorio / multi-servicio con Next.js y NestJS",
+      "finding": "Tener el puerto local por defecto en 3000 para backends genera colisiones inmediatas con frontends Next.js levantados en la misma máquina",
+      "root_cause": "Convención estándar por defecto en frameworks web de usar el puerto 3000",
+      "rule": "Bajo ADR-013, reservar 3000 para Frontend Web, 3001 para Backend APIs / Microservicios y 3002 para Studio Hubs, usando scope @genaryth/ para evitar paquetes huérfanos",
+      "scope": "GENARYTH_GLOBAL"
     }
   ]
 }
