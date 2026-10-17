@@ -1,5 +1,5 @@
 {
-  "name": "aws-cdk-nestjs-archetype-template",
+  "name": "@genaryth/archetype-api",
   "version": "1.0.0",
   "description": "AWS CDK Archetype Template",
   "private": true,
@@ -13,6 +13,7 @@
   },
   "packageManager": "pnpm@11.14.0",
   "scripts": {
+    "dev": "pnpm start:local",
     "prebuild": "tsc",
     "build": "ts-node prepareBuild.ts",
     "postbuild": "cd app && pnpm run package:install",

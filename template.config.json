@@ -55,8 +55,8 @@
   "replacements": [
     {
       "files": ["package.json"],
-      "from": "\"name\": \"aws-cdk-nestjs-archetype-template\"",
-      "to": "\"name\": \"{{PROJECT_NAME}}\""
+      "from": "\"name\": \"@genaryth/archetype-api\"",
+      "to": "\"name\": \"@genaryth/{{PROJECT_NAME}}-api\""
     },
     {
       "files": ["package.json"],
@@ -65,8 +65,8 @@
     },
     {
       "files": ["infrastructure/package.json"],
-      "from": "\"name\": \"arq-impl-cdk\"",
-      "to": "\"name\": \"{{PROJECT_NAME}}-infrastructure\""
+      "from": "\"name\": \"@genaryth/archetype-infra\"",
+      "to": "\"name\": \"@genaryth/{{PROJECT_NAME}}-infra\""
     },
     {
       "files": ["infrastructure/bin/infrastructure.ts"],

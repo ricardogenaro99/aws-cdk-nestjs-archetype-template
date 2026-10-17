@@ -77,7 +77,7 @@ pnpm start:local
 .
 ├── .husky/                         # Hooks git: pre-commit (tsc) y commit-msg (commitlint)
 ├── .vscode/                        # Settings y extensiones recomendadas (versionado)
-├── infrastructure/                 # Workspace pnpm "arq-impl-cdk" (app + biblioteca CDK)
+├── infrastructure/                 # Workspace pnpm "@genaryth/archetype-infra" (app + biblioteca CDK)
 │   ├── bin/infrastructure.ts       # Entrypoint CDK: carga ../../.env e instancia el stack
 │   ├── lib/
 │   │   ├── common/                 # config.ts (config por STAGE) y enum.ts
@@ -124,7 +124,7 @@ pnpm start:local
 | `pnpm install`                     | Instala workspaces y ejecuta `postinstall` → `pnpm run build`.                                                |
 | `pnpm run build`                   | `prebuild` (`tsc` de `src/` → `app/`) → `prepareBuild.ts` → `postbuild` (`npm install --omit=dev` en `app/`). |
 | `pnpm run tsc` / `tsc:watch`       | Compilación TypeScript de `src/` (sin empaquetar).                                                            |
-| `pnpm start:local`                 | Servidor Express con `node --watch` (reinicia al cambiar archivos) en `PORT` o `3000`.                        |
+| `pnpm run dev` / `pnpm start:local`| Servidor Express con `node --watch` (reinicia al cambiar archivos) en `PORT` o `3001` (ADR-013).             |
 | `pnpm run infra:bootstrap`         | `cdk bootstrap` vía `run-cdk.ts`.                                                                             |
 | `pnpm run infra:synth`             | `cdk synth` → `infrastructure/cdk.out/`.                                                                      |
 | `pnpm run infra:diff`              | `cdk diff` contra lo desplegado.                                                                              |
@@ -135,20 +135,20 @@ pnpm start:local
 
 ### 📦 Gestión con PNPM Workspaces (`pnpm --filter`)
 
-El repositorio está estructurado como un monorepo administrado con **pnpm workspaces** (`pnpm-workspace.yaml`), separando el código fuente de aplicación (`aws-cdk-nestjs-archetype-template` en la raíz) de la infraestructura CDK (`arq-impl-cdk` en `infrastructure/`).
+El repositorio está estructurado como un monorepo administrado con **pnpm workspaces** (`pnpm-workspace.yaml`), separando el código fuente de aplicación (`@genaryth/archetype-api` en la raíz) de la infraestructura CDK (`@genaryth/archetype-infra` en `infrastructure/`).
 
 Para interactuar de manera precisa con un paquete específico sin salir de la raíz del monorepo, usa la bandera `--filter`:
 
 ```bash
 # Ejecutar comandos de infraestructura aislados
-pnpm --filter arq-impl-cdk run build
-pnpm --filter arq-impl-cdk run synth
-pnpm --filter arq-impl-cdk run diff
-pnpm --filter arq-impl-cdk run deploy
+pnpm --filter @genaryth/archetype-infra run build
+pnpm --filter @genaryth/archetype-infra run synth
+pnpm --filter @genaryth/archetype-infra run diff
+pnpm --filter @genaryth/archetype-infra run deploy
 
 # Agregar o actualizar dependencias en un paquete específico
-pnpm --filter arq-impl-cdk add <dependencia>
-pnpm --filter aws-cdk-nestjs-archetype-template add <dependencia>
+pnpm --filter @genaryth/archetype-infra add <dependencia>
+pnpm --filter @genaryth/archetype-api add <dependencia>
 
 # Ejecutar scripts en paralelo o recursivamente en todos los workspaces
 pnpm -r run build
@@ -166,7 +166,7 @@ Se leen desde `.env` en la raíz (gitignored) por `run-cdk.ts`, `infrastructure/
 | `AWS_REGION` / `AWS_DEFAULT_REGION`                                 | CDK, SDK local         | Región destino del despliegue y del SDK.                                                    |
 | `STAGE`                                                             | CDK                    | `DESA` (default) \| `TEST` \| `PROD`. Define naming, retención de logs y `RemovalPolicy`.   |
 | `TASKS_TABLE_NAME`                                                  | Lambda, servidor local | Tabla DynamoDB de tareas. En Lambda la inyecta CDK; en local debes copiarla del despliegue. |
-| `PORT`                                                              | Servidor local         | Puerto del servidor Express (default `3000`).                                               |
+| `PORT`                                                              | Servidor local         | Puerto del servidor Express (default `3001` según segregación ADR-013).                    |
 
 Variables inyectadas automáticamente a toda Lambda creada con `TemplateLambdaFunction`: `TZ=America/Lima`, `STAGE`.
 
@@ -195,21 +195,31 @@ Definida en [`task-manager.infra.ts`](infrastructure/lib/module/task-manager/tas
 ## 💻 Desarrollo local
 
 ```bash
+# Iniciar con recarga automática
+pnpm run dev
+# o alternativamente:
 pnpm start:local
 ```
 
-- Levanta Express en `http://localhost:3000` y monta automáticamente cada archivo `server-local/modules/*.local.ts` que exporte `path`, `router`, `initialize`, `cleanup` y `printHelp`.
+- Levanta Express en `http://localhost:3001` y monta automáticamente cada archivo `server-local/modules/*.local.ts` que exporte `path`, `router`, `initialize`, `cleanup` y `printHelp`.
 - Asigna un `requestId` por petición (header `x-request-id` o generado) usando `AsyncLocalStorage`, para que aparezca en los logs.
 - Usa **DynamoDB real**: necesitas credenciales y `TASKS_TABLE_NAME` apuntando a una tabla desplegada.
 
+> [!NOTE]
+> **Convención de Puertos del Ecosistema Genaryth (ADR-013):**
+> Para garantizar coexistencia armónica y evitar colisiones en entornos locales multi-servicio:
+> - **Puerto `3000`:** Aplicaciones Web Frontend (Next.js / React)
+> - **Puerto `3001`:** Microservicios Backend y APIs Serverless (este arquetipo)
+> - **Puerto `3002`:** Hubs de Gestión, CMS y Paneles de Control (Studio Hub)
+
 ```bash
-curl http://localhost:3000/tasks
-curl http://localhost:3000/tasks/task-1
-curl -X POST http://localhost:3000/tasks -H "Content-Type: application/json" \
+curl http://localhost:3001/tasks
+curl http://localhost:3001/tasks/task-1
+curl -X POST http://localhost:3001/tasks -H "Content-Type: application/json" \
   -d '{"title":"Mi tarea","description":"Detalle"}'
-curl -X PUT http://localhost:3000/tasks/task-1 -H "Content-Type: application/json" \
+curl -X PUT http://localhost:3001/tasks/task-1 -H "Content-Type: application/json" \
   -d '{"status":"COMPLETED"}'
-curl -X DELETE http://localhost:3000/tasks/task-1
+curl -X DELETE http://localhost:3001/tasks/task-1
 ```
 
 > [!WARNING]
