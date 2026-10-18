@@ -59,5 +59,26 @@ export class TemplateRestApi extends apigateway.RestApi {
     });
 
     this.usagePlan.addApiKey(this.apiKey);
+
+    // Inyección de Gateway Responses perimetrales con cabeceras CORS para errores generados por API Gateway (4XX / 5XX)
+    this.addGatewayResponse('Default4XXResponse', {
+      type: apigateway.ResponseType.DEFAULT_4XX,
+      responseHeaders: {
+        'Access-Control-Allow-Origin': "'*'",
+        'Access-Control-Allow-Headers':
+          "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent'",
+        'Access-Control-Allow-Methods': "'GET,POST,PUT,PATCH,DELETE,OPTIONS'",
+      },
+    });
+
+    this.addGatewayResponse('Default5XXResponse', {
+      type: apigateway.ResponseType.DEFAULT_5XX,
+      responseHeaders: {
+        'Access-Control-Allow-Origin': "'*'",
+        'Access-Control-Allow-Headers':
+          "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token,X-Amz-User-Agent'",
+        'Access-Control-Allow-Methods': "'GET,POST,PUT,PATCH,DELETE,OPTIONS'",
+      },
+    });
   }
 }

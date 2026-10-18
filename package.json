@@ -27,6 +27,8 @@
     "infra:deploy": "pnpm run build && ts-node run-cdk.ts deploy",
     "infra:deploy:fast": "pnpm run build && ts-node run-cdk.ts deploy --hotswap",
     "infra:destroy": "ts-node run-cdk.ts destroy",
+    "ci:local": "node .genaryth/ci/runner.mjs",
+    "ci:local:fast": "node .genaryth/ci/runner.mjs --fast",
     "harness:check": "node .genaryth/harness/enforcer.mjs",
     "harness:check:staged": "node .genaryth/harness/enforcer.mjs --staged",
     "prepare": "husky"

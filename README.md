@@ -119,21 +119,23 @@ pnpm run dev
 
 ## 📜 Scripts disponibles
 
-| Script                             | Qué hace realmente                                                                                            |
-| ---------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| `pnpm install`                     | Instala workspaces y dependencias (`pnpm`).                                                                   |
-| `pnpm run build`                   | Compila `src/` (`tsc`) y genera empaquetado optimizado en `/app` (`prepareBuild.ts` + `package:install`).     |
-| `pnpm run dev`                     | Servidor Express con `node --watch` (recarga automática) en `PORT` o `3001` (ADR-013).                         |
-| `pnpm run typecheck`               | Verificación de tipos TypeScript (`tsc --noEmit`) en raíz y workspace `infrastructure`.                       |
-| `pnpm run infra:bootstrap`         | `cdk bootstrap` vía `run-cdk.ts`.                                                                             |
-| `pnpm run infra:synth`             | `pnpm run build` y genera `cdk.out/` (`cdk synth`).                                                           |
-| `pnpm run infra:diff`              | `pnpm run build` y compara cambios contra CloudFormation (`cdk diff`).                                         |
-| `pnpm run infra:deploy`            | `pnpm run build` y despliega infraestructura y Lambdas en AWS (`cdk deploy`).                                 |
-| `pnpm run infra:deploy:fast`       | `pnpm run build` y despliega con hotswap (`cdk deploy --hotswap`).                                             |
-| `pnpm run infra:destroy`           | `cdk destroy`.                                                                                                |
-| `pnpm run lint` / `lint:fix`       | ESLint (flat config, `typescript-eslint` recommended + prettier).                                             |
-| `pnpm run format` / `format:check` | Prettier sobre `ts, js, json, md, yml, yaml`.                                                                 |
-| `pnpm run harness:check`           | Enforcer local de seguridad, escaneo de secretos y límites arquitectónicos.                                   |
+| Script                             | Qué hace realmente                                                                                         |
+| ---------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `pnpm install`                     | Instala workspaces y dependencias (`pnpm`).                                                                |
+| `pnpm run build`                   | Compila `src/` (`tsc`) y genera empaquetado optimizado en `/app` (`prepareBuild.ts` + `package:install`).  |
+| `pnpm run dev`                     | Servidor Express con `node --watch` (recarga automática) en `PORT` o `3001` (ADR-013).                     |
+| `pnpm run typecheck`               | Verificación de tipos TypeScript (`tsc --noEmit`) en raíz y workspace `infrastructure`.                    |
+| `pnpm run infra:bootstrap`         | `cdk bootstrap` vía `run-cdk.ts`.                                                                          |
+| `pnpm run infra:synth`             | `pnpm run build` y genera `cdk.out/` (`cdk synth`).                                                        |
+| `pnpm run infra:diff`              | `pnpm run build` y compara cambios contra CloudFormation (`cdk diff`).                                     |
+| `pnpm run infra:deploy`            | `pnpm run build` y despliega infraestructura y Lambdas en AWS (`cdk deploy`).                              |
+| `pnpm run infra:deploy:fast`       | `pnpm run build` y despliega con hotswap (`cdk deploy --hotswap`).                                         |
+| `pnpm run infra:destroy`           | `cdk destroy`.                                                                                             |
+| `pnpm run lint` / `lint:fix`       | ESLint (flat config, `typescript-eslint` recommended + prettier).                                          |
+| `pnpm run format` / `format:check` | Prettier sobre `ts, js, json, md, yml, yaml`.                                                              |
+| `pnpm run ci:local`                | Titanium Local CI Runner: ejecuta secuencialmente Security Harness, Typecheck, CDK Synth, Linter y Format. |
+| `pnpm run ci:local:fast`           | Modo rápido del Local CI Runner (omite comprobación de formateo Prettier).                                 |
+| `pnpm run harness:check`           | Enforcer local de seguridad, escaneo de secretos y límites arquitectónicos.                                |
 
 ### 📦 Gestión con PNPM Workspaces (`pnpm --filter`)
 
@@ -168,7 +170,7 @@ Se leen desde `.env` en la raíz (gitignored) por `run-cdk.ts`, `infrastructure/
 | `AWS_REGION` / `AWS_DEFAULT_REGION`                                 | CDK, SDK local         | Región destino del despliegue y del SDK.                                                    |
 | `STAGE`                                                             | CDK                    | `DESA` (default) \| `TEST` \| `PROD`. Define naming, retención de logs y `RemovalPolicy`.   |
 | `TASKS_TABLE_NAME`                                                  | Lambda, servidor local | Tabla DynamoDB de tareas. En Lambda la inyecta CDK; en local debes copiarla del despliegue. |
-| `PORT`                                                              | Servidor local         | Puerto del servidor Express (default `3001` según segregación ADR-013).                    |
+| `PORT`                                                              | Servidor local         | Puerto del servidor Express (default `3001` según segregación ADR-013).                     |
 
 Variables inyectadas automáticamente a toda Lambda creada con `TemplateLambdaFunction`: `TZ=America/Lima`, `STAGE`.
 
@@ -208,6 +210,7 @@ pnpm run dev
 > [!NOTE]
 > **Convención de Puertos del Ecosistema Genaryth (ADR-013):**
 > Para garantizar coexistencia armónica y evitar colisiones en entornos locales multi-servicio:
+>
 > - **Puerto `3000`:** Aplicaciones Web Frontend (Next.js / React)
 > - **Puerto `3001`:** Microservicios Backend y APIs Serverless (este arquetipo)
 > - **Puerto `3002`:** Hubs de Gestión, CMS y Paneles de Control (Studio Hub)
@@ -241,8 +244,14 @@ Los comandos `infra:*` pasan por [`run-cdk.ts`](run-cdk.ts), que carga `.env` (s
 
 ---
 
-## 🛡️ Calidad de código
+## 🛡️ Calidad de código & Titanium Local CI Runner
 
+- **Local CI Runner (`pnpm run ci:local`)**: Ejecuta localmente la batería integral de calidad previa a cualquier commit/push:
+  1. `🔒 Security & Local Harness Check`: Escaneo de fuga de secretos y límites de cuota AWS.
+  2. `📐 TypeScript Typecheck (Dual Monorepo)`: Chequeo estricto de tipos en raíz e `infrastructure/`.
+  3. `☁️ AWS CDK Infrastructure Synth Validation`: Síntesis limpia de CloudFormation (`cdk synth`).
+  4. `🧹 Code Quality & ESLint Linter`: Verificación estática con ESLint 9 (Flat Config).
+  5. `✨ Code Style Formatting Check`: Validación de estilo y consistencia con Prettier.
 - **Pre-commit** ([`.husky/pre-commit`](.husky/pre-commit)): `npx tsc` (solo `src/`; la infraestructura no se compila aquí).
 - **Commit-msg**: `commitlint` con `@commitlint/config-conventional` (`feat:`, `fix:`, `docs:`, `chore:`, `refactor:`…).
 - **ESLint** flat config: `eslint` + `typescript-eslint` recommended + `eslint-config-prettier`; `no-explicit-any` en `warn`; `no-unused-vars` en `error` (ignora `_prefijo`).
