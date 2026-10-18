@@ -99,6 +99,32 @@
       "root_cause": "Convención estándar por defecto en frameworks web de usar el puerto 3000",
       "rule": "Bajo ADR-013, reservar 3000 para Frontend Web, 3001 para Backend APIs / Microservicios y 3002 para Studio Hubs, usando scope @genaryth/ para evitar paquetes huérfanos",
       "scope": "GENARYTH_GLOBAL"
+    },
+    {
+      "id": "LRN-008",
+      "timestamp": "2026-10-18T18:30:00Z",
+      "hilo": "hilo_3_devops",
+      "area": "cloud-api-gateway",
+      "ticket": "OPS-06",
+      "author": "subagent-architect",
+      "context": "Manejo de errores perimetrales 4XX y 5XX en Amazon API Gateway REST",
+      "finding": "Errores de validación de payload (400), WAF/API Key (403) o Throttling (429) eran bloqueados por CORS en el navegador ocultando el payload JSON de error",
+      "root_cause": "defaultCorsPreflightOptions solo inyecta cabeceras CORS en respuestas OPTIONS exitosas, dejando los errores generados por el Edge de API Gateway sin cabeceras",
+      "rule": "Inyectar siempre Gateway Responses nativas para DEFAULT_4XX y DEFAULT_5XX con cabeceras Access-Control-Allow-* en TemplateRestApi",
+      "scope": "GENARYTH_GLOBAL"
+    },
+    {
+      "id": "LRN-009",
+      "timestamp": "2026-10-18T18:30:00Z",
+      "hilo": "hilo_3_devops",
+      "area": "ci-automation",
+      "ticket": "OPS-06",
+      "author": "subagent-architect",
+      "context": "Validación de pipelines de CI/CD en entorno local antes de push o ante cuotas agotadas de CI",
+      "finding": "Encadenar scripts bash ciegos no ofrece métricas, diagnóstico formateado ni soporte de banderas modulares rápidas",
+      "root_cause": "Falta de un ejecutor interactivo local con timing y feedback estructurado",
+      "rule": "Proveer siempre un script ci:local basado en Titanium Runner (.genaryth/ci/runner.mjs) que certifique harness, typecheck, cdk synth y lint en local",
+      "scope": "GENARYTH_GLOBAL"
     }
   ]
 }
