@@ -20,6 +20,11 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write \"**/*.{ts,js,json,md,yml,yaml}\"",
     "format:check": "prettier --check \"**/*.{ts,js,json,md,yml,yaml}\"",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:studio": "prisma studio",
     "build": "tsc && ts-node prepareBuild.ts",
     "postbuild": "cd app && pnpm run package:install",
     "infra:bootstrap": "ts-node run-cdk.ts bootstrap",
@@ -30,6 +35,8 @@
     "infra:destroy": "ts-node run-cdk.ts destroy",
     "ci:local": "node .genaryth/ci/runner.mjs",
     "ci:local:fast": "node .genaryth/ci/runner.mjs --fast",
+    "cd:local": "node .genaryth/cd/runner.mjs",
+    "cd:local:full": "node .genaryth/cd/runner.mjs --full",
     "harness:check": "node .genaryth/harness/enforcer.mjs",
     "harness:check:staged": "node .genaryth/harness/enforcer.mjs --staged",
     "prepare": "husky"
@@ -45,6 +52,7 @@
     "@middy/core": "4.5.5",
     "@nestjs/common": "11.1.21",
     "@nestjs/core": "11.1.21",
+    "@prisma/client": "6.4.1",
     "reflect-metadata": "0.1.14",
     "rxjs": "^7.8.1"
   },
@@ -63,6 +71,7 @@
     "fs-extra": "^11.2.0",
     "husky": "^9.1.7",
     "prettier": "^3.3.2",
+    "prisma": "6.4.1",
     "ts-node": "^10.9.2",
     "typescript": "^5.5.2",
     "typescript-eslint": "^8.0.0"

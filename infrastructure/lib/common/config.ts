@@ -7,15 +7,15 @@ const stage: Stage = ConfigUtil.getCurrentStage();
 
 const account = {
   [Stage.DESA]: {
-    id: '799683146289',
+    id: process.env.AWS_ACCOUNT_ID || '036873953739',
     abrev: AccountAbrev.DEVL,
   },
   [Stage.TEST]: {
-    id: '438323272304',
+    id: process.env.AWS_ACCOUNT_ID || '036873953739',
     abrev: AccountAbrev.TEST,
   },
   [Stage.PROD]: {
-    id: '391231515244',
+    id: process.env.AWS_ACCOUNT_ID || '036873953739',
     abrev: AccountAbrev.PROD,
   },
 }[stage];

@@ -1,7 +1,9 @@
 import { Construct } from 'constructs';
 import * as apigateway from 'aws-cdk-lib/aws-apigateway';
 import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
+import * as ssm from 'aws-cdk-lib/aws-ssm';
 import { TemplateLambdaFunction, TemplateLambdaIntegration, TemplateTable } from '../../index';
+import { config } from '../../common/config';
 
 export interface TaskManagerInfraProps {
   apiGateway: apigateway.RestApi;
@@ -10,9 +12,17 @@ export interface TaskManagerInfraProps {
 export class TaskManagerInfra extends Construct {
   public readonly lambda: TemplateLambdaFunction;
   public readonly table: TemplateTable;
+  public readonly jwtSecretParam: ssm.StringParameter;
 
   constructor(scope: Construct, id: string, props: TaskManagerInfraProps) {
     super(scope, id);
+
+    // 0. SSM Parameter Store Standard para Secret de Firma JWT ($0.00)
+    this.jwtSecretParam = new ssm.StringParameter(this, 'TaskManagerJwtSecretParam', {
+      parameterName: `${config.ssmRootPath}/jwt-secret`,
+      description: `JWT Secret Parameter for ${config.repoAbrev} (SSM Standard $0.00)`,
+      stringValue: process.env.JWT_SECRET || 'super_secret_jwt_key_genaryth_2026',
+    });
 
     // 1. Base de datos del módulo (DynamoDB Table)
     this.table = new TemplateTable(this, 'TaskTable', {
@@ -28,8 +38,19 @@ export class TaskManagerInfra extends Construct {
       description: 'Task Manager Lambda Function',
       environment: {
         TASKS_TABLE_NAME: this.table.tableName,
+        DATABASE_URL:
+          process.env.DATABASE_URL ||
+          'postgresql://user:password@localhost:5432/postgres?schema=public',
+        DIRECT_URL:
+          process.env.DIRECT_URL ||
+          process.env.DATABASE_URL ||
+          'postgresql://user:password@localhost:5432/postgres?schema=public',
+        JWT_SECRET: process.env.JWT_SECRET || 'super_secret_jwt_key_genaryth_2026',
       },
     });
+
+    // Otorgar permisos IAM de lectura del SSM parameter JWT a la Lambda
+    this.jwtSecretParam.grantRead(this.lambda);
 
     // Otorgar permisos de lectura y escritura a la Lambda sobre la tabla
     this.table.grantReadWriteData(this.lambda);

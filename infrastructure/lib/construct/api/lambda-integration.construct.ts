@@ -9,10 +9,11 @@ export interface TemplateLambdaIntegrationProps extends Omit<apigateway.LambdaIn
 export class TemplateLambdaIntegration extends apigateway.LambdaIntegration {
   constructor(handler: IFunction, props: TemplateLambdaIntegrationProps) {
     const successCode = props.statusCode ?? '200';
+    const scopePermissionToMethod = props.scopePermissionToMethod ?? false;
     super(handler, {
       proxy: false,
-      allowTestInvoke: false,
-      scopePermissionToMethod: false,
+      scopePermissionToMethod,
+      ...(scopePermissionToMethod ? { allowTestInvoke: false } : {}),
       requestTemplates: {
         'application/json': `{
           "action": "${props.action}",
