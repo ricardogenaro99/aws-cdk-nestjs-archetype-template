@@ -1,31 +1,36 @@
 {
   "name": "@genaryth/archetype-infra",
   "version": "1.0.0",
+  "private": true,
+  "description": "AWS CDK Infrastructure Stack & Constructs",
   "author": {
     "name": "Ricardo Genaro",
     "url": "https://github.com/ricardogenaro99"
   },
-  "private": true,
+  "license": "UNLICENSED",
   "main": "lib/index.js",
-  "scripts": {
-    "typecheck": "tsc --noEmit",
-    "build": "tsc",
-    "synth": "cdk synth",
-    "diff": "cdk diff",
-    "deploy": "cdk deploy",
-    "destroy": "cdk destroy"
+  "engines": {
+    "node": ">=22.0.0",
+    "pnpm": ">=9.0.0"
   },
-  "devDependencies": {
-    "@types/node": "^22.10.0",
-    "cross-env": "^7.0.3",
-    "ts-node": "^10.9.2",
-    "typescript": "^5.5.2"
+  "scripts": {
+    "build": "tsc",
+    "deploy": "cdk deploy",
+    "destroy": "cdk destroy",
+    "diff": "cdk diff",
+    "synth": "cdk synth",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "aws-cdk": "^2.147.1",
     "aws-cdk-lib": "^2.147.1",
     "constructs": "^10.3.0",
     "dotenv": "^16.4.7"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.5.2"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
