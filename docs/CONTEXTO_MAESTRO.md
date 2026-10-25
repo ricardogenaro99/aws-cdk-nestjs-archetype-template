@@ -60,27 +60,34 @@ El código de negocio (`src/[dominio]`) sigue una separación estricta:
 
 ```text
 .
+├── .genaryth/                      # Arnés de gobernanza, CI local runner y learnings
+│   ├── ci/runner.mjs               # Titanium CI Runner (pnpm ci:local / ci:local:fast)
+│   ├── harness/enforcer.mjs        # Guardrails de ejecución y sandboxing (ADR-011)
+│   └── learnings.json              # Protocolo ALF (Agent Learning & Feedback)
 ├── .husky/                         # Hooks git: pre-commit (tsc) y commit-msg (commitlint)
 ├── docs/                           # Documentación SSOT (Fase Kickoff)
 │   ├── CONTEXTO_MAESTRO.md         # Este documento (SSOT técnico y funcional)
 │   └── OPERATING_THREADS.md        # Catálogo de hilos de Antigravity
-├── infrastructure/                 # Workspace pnpm "arq-impl-cdk" (AWS CDK v2)
+├── infrastructure/                 # Workspace pnpm "@genaryth/archetype-infra" (AWS CDK v2)
 │   ├── bin/infrastructure.ts       # Entrypoint CDK con carga de variables .env
 │   ├── lib/
 │   │   ├── common/                 # config.ts (ambientes DESA/TEST/PROD), enum.ts
-│   │   ├── construct/              # Constructores Template* reutilizables
+│   │   ├── construct/              # Constructores Template* reutilizables (API, Lambda, DDB, Aurora, WAF, CloudFront)
 │   │   ├── module/task-manager/    # Recursos CDK del dominio (Tabla, Lambda, Rutas)
 │   │   ├── infrastructure.stack.ts # Stack orquestador
 │   │   └── index.ts                # Barrel export de constructores
 │   └── cdk.json
-├── server-local/                   # Servidor Express para desarrollo y depuración local
+├── server-local/                   # Servidor Express (Puerto 3001) para emulación local y Swagger
 ├── src/
-│   ├── common/                     # Núcleo transversal: middlewares, logging, excepciones
+│   ├── common/                     # Núcleo transversal: middlewares, logging SSOT, excepciones
 │   └── task-manager/               # Microservicio/dominio de referencia
-├── template.config.json            # Metadatos y transformaciones para @ricardogenaro99/scaffolder
-├── prepareBuild.ts                 # Script de empaquetado optimizado para /app
-├── GEMINI.md                       # Reglas maestras del repositorio para Agentes IA
-└── package.json                    # Workspace raíz (pnpm)
+├── template.config.json            # Metadatos y transformaciones Mustache para @ricardogenaro99/scaffolder v1.3+
+├── prepareBuild.ts                 # Script de empaquetado optimizado para /app (excluye AWS SDK)
+├── GEMINI.md                       # Reglas maestras del repositorio para Agentes IA (SSOT)
+├── CLAUDE.md -> GEMINI.md          # Symlink relativo POSIX (ADR-010)
+├── AGENTS.md -> GEMINI.md          # Symlink relativo POSIX (ADR-010)
+├── .cursorrules -> GEMINI.md       # Symlink relativo POSIX (ADR-010)
+└── package.json                    # Workspace raíz "@genaryth/archetype-api" (pnpm)
 ```
 
 ---
@@ -112,16 +119,19 @@ El código de negocio (`src/[dominio]`) sigue una separación estricta:
 
 ## 5. Roadmap de Evolución del Arquetipo
 
-### Sprint 1: Hardening de Errores y Calidad (Actual)
+### Sprint 1: Hardening de Errores, Calidad y Gobernanza (Completado)
 
 - [x] Documentación SSOT (`CONTEXTO_MAESTRO.md`, `OPERATING_THREADS.md`, `GEMINI.md`).
-- [ ] Implementar mapeo de errores HTTP en API Gateway para integración no-proxy (traducción de `ValidationException` -> 400 y `BusinessException` -> 422).
-- [ ] Consolidar los duplicados de `LogContext.ts` en `src/common/`.
-- [ ] Configurar suite de pruebas automatizadas con Jest (unitarias para dominio/aplicación).
+- [x] Mapeo de errores y Gateway Responses perimetrales en API Gateway con cabeceras CORS (`DEFAULT_4XX`, `DEFAULT_5XX`).
+- [x] Consolidación de SSOT de logging y erradicación de duplicados de `LogContext.ts`.
+- [x] Mitigación de cuota de 20 KB en políticas de recursos Lambda (`scopePermissionToMethod: false`, `allowTestInvoke: false`).
+- [x] Segregación de puerto local (`3001`) para evitar colisiones con microservicios cliente (ADR-013).
+- [x] Arnés de ejecución, guardrails y Quality Gate local con Titanium CI Runner (`pnpm run ci:local`).
 
-### Sprint 2: Compatibilidad y Scaffolder CLI v1.1+
+### Sprint 2: Compatibilidad y Scaffolder CLI v1.3+
 
-- [ ] Validar y testear reemplazos de `template.config.json` en escenarios multi-módulo.
+- [x] Validar y testear reemplazos de `template.config.json` con sintaxis Mustache `{{PROJECT_NAME}}`.
+- [x] Estandarización de nombres con scope empresarial (`@genaryth/archetype-api`, `@genaryth/archetype-infra`).
 - [ ] Agregar soporte para multi-región en `infrastructure/lib/common/config.ts`.
 - [ ] Crear plantilla de tests de integración para Lambdas simuladas.
 
@@ -133,5 +143,6 @@ El código de negocio (`src/[dominio]`) sigue una separación estricta:
 
 ### Sprint 4: Automatización CI/CD
 
-- [ ] Pipelines de GitHub Actions para validación (`typecheck`, `lint`, `format:check`).
+- [x] Quality Gate unificado local (`pnpm run ci:local` y `ci:local:fast`) antes de pre-push.
+- [ ] Pipelines de GitHub Actions para validación remota (`typecheck`, `lint`, `format:check`).
 - [ ] Despliegue continuo condicional a cuentas de AWS por branch (`develop` -> DESA, `main` -> PROD).

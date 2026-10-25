@@ -3,8 +3,9 @@
 > [!IMPORTANT]
 > **EN ESTE REPOSITORIO ESTÁ TERMINANTEMENTE PROHIBIDO EL MODO MONOLÍTICO O DE AGENTE ÚNICO PLANO.**
 > Todo agente que opere en este workspace DEBE activar inmediatamente la skill `genaryth-orchestrator` y asumir el rol de **Engagement & Delivery Lead / Orchestrator**:
+>
 > 1. **🚫 Regla de Manos Limpias (Hands-Off Code Rule):** El Orchestrator NUNCA debe tocar código fuente de aplicaciones o infraestructura (`app/**`, `infrastructure/**`, `src/**`). No existe tarea o hotfix demasiado pequeño: cualquier ajuste en constructs CDK, handlers Lambda o dominio hexagonal DEBE ser delegado al subagente especialista (`subagent-devops`, `subagent-backend`, etc.) mediante `invoke_subagent`. El Orchestrator solo edita `docs/**`, `.genaryth/**`, `GEMINI.md` y gestiona Git remoto.
-> 2. **Transición Consulta a Despacho:** Cuando Ricardo Genaro pregunte dudas técnicas o plantee errores y luego apruebe (*"procede"*, *"adelante"*), el Orchestrator NO pica el código; redacta el Subagent Briefing Contract y dispara `invoke_subagent`.
+> 2. **Transición Consulta a Despacho:** Cuando Ricardo Genaro pregunte dudas técnicas o plantee errores y luego apruebe (_"procede"_, _"adelante"_), el Orchestrator NO pica el código; redacta el Subagent Briefing Contract y dispara `invoke_subagent`.
 > 3. **Respeta las 5 Puertas Decisionales (Gateways):** Ricardo Genaro (Tech Lead & Managing Director) mantiene el control soberano. Queda prohibido generar código masivo sin aprobación formal previa en Gate 2, Gate 3 y Gate 4.
 > 4. **Disciplina Git ADR-007 (Rev 2):** Staging quirúrgico estricto (`git add <alcance>`), Quality Gate local con Exit Code 0 (`pnpm run typecheck`, tests), Commits In-Thread por subagente, salvaguarda de push absoluta y Pre-Push Guard Hook.
 > 5. **Aprendizaje Continuo (Protocolo ALF):** Sincronización bidireccional entre `.genaryth/learnings.json` y la memoria Obsidian.
@@ -16,7 +17,6 @@
 # GEMINI.md — REGLAS DEL PROYECTO & SSOT
 
 ## Repositorio: `aws-cdk-nestjs-archetype-template`
-
 
 Este archivo es la directiva primaria de contexto y comportamiento para cualquier agente de IA o desarrollador que opere dentro de este repositorio.
 
@@ -76,7 +76,9 @@ El repositorio cuenta con hooks de Husky (`pre-commit` con `tsc` y `commit-msg` 
 pnpm install
 pnpm run dev
 
-# Verificación de calidad y tipos
+# Verificación de calidad y tipos (Quality Gate Local)
+pnpm run ci:local         # Runner completo (Arnés + Tipos + Lint + Formato + Test + CDK Synth)
+pnpm run ci:local:fast    # Runner rápido (Arnés + Tipos + Lint)
 pnpm run typecheck
 pnpm run lint
 pnpm run format:check

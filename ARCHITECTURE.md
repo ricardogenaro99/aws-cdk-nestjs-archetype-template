@@ -99,7 +99,8 @@ Puntos clave, verificados en el código:
 1. **El despacho ocurre en el `after` de `eventSourceMiddleware`**, no en el handler. El handler solo devuelve la instancia del controlador; el middleware invoca `controller[action](payload)` y reemplaza la respuesta por `{ payload: data }`. La plantilla de respuesta de API Gateway (`$input.path("$.payload")`) desempaqueta ese objeto.
 2. Si `action` falta o el controlador no tiene ese método se lanza `ValidationException` con `ECORE-0003`.
 3. **`requestId`**: el wrapper usa `context.awsRequestId` en `AsyncLocalStorage`; `requestMiddleware` además lo deja en `process.env.AWS_REQUEST_ID`, que el logger usa como respaldo fuera del contexto ALS.
-4. **`onError`** (solo origen API Gateway): convierte el error en `{ error: { ...campos, httpStatus } }` con `httpStatus` = `422` para `BusinessException`, `400` para `ValidationException`, o el `httpStatus` propio / `500`. Ver la limitación #2 del README: la integración no-proxy aún no mapea esos errores a códigos HTTP.
+4. **`onError`** (solo origen API Gateway): convierte el error en `{ error: { ...campos, httpStatus } }` con `httpStatus` = `422` para `BusinessException`, `400` para `ValidationException`, o el `httpStatus` propio / `500`.
+5. **CORS y Gateway Responses Perimetrales (`ARCH-002`)**: `TemplateRestApi` inyecta automáticamente `GatewayResponse` nativas para tipos `DEFAULT_4XX` y `DEFAULT_5XX`. Si una petición es rechazada en el perímetro de AWS (error 400 por validación de API Gateway, 401 por autorizador JWT, 403 por WAF o 429 por Throttling), la respuesta mantiene siempre la cabecera `Access-Control-Allow-Origin: '*'`.
 
 ### Orígenes de evento soportados por `eventSourceMiddleware`
 
@@ -151,15 +152,16 @@ Solo el origen **API Gateway** tiene despacho automático a controlador en el `a
 
 ## 6. Desarrollo local vs. AWS
 
-| Aspecto           | `pnpm start:local`                         | AWS                                             |
+| Aspecto           | `pnpm start:local` (Puerto 3001)           | AWS                                             |
 | ----------------- | ------------------------------------------ | ----------------------------------------------- |
 | Entrada           | Express → `controller.metodo(req)` directo | API Gateway → `App.handler` → middy             |
 | Middlewares middy | ❌ no se ejecutan                          | ✅                                              |
 | Parámetro `{id}`  | `req.params.id`                            | `pathParameters` (ver limitación #1 del README) |
 | Errores           | siempre `500`                              | `400` / `422` / `500` vía `onError`             |
+| CORS perimetral   | Express CORS habilitado                    | Gateway Responses `DEFAULT_4XX` / `5XX`         |
 | Persistencia      | DynamoDB real (`TASKS_TABLE_NAME`)         | DynamoDB del stack                              |
 
-El servidor local sirve para iterar sobre la lógica de negocio. **No reemplaza** una prueba del handler real (con un evento de ejemplo o `sam local invoke` sobre `cdk.out`).
+El servidor local se ejecuta por defecto en el puerto `3001` (para evitar colisiones con aplicaciones frontend en `3000`) y sirve para iterar rápidamente sobre la lógica de negocio y explorar Swagger en `/api/docs`. **No reemplaza** una prueba del handler real (con un evento de ejemplo o `sam local invoke` sobre `cdk.out`).
 
 ---
 

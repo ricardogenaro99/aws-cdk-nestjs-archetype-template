@@ -50,14 +50,14 @@ Para garantizar trazabilidad, prevenir colisiones de ramas y auditar cambios, ca
 
 ### 5. 🛠️ ARCHETYPE - Scaffolding & Developer Experience
 
-- **Responsabilidad:** Compatibilidad con `@ricardogenaro99/scaffolder` v1.1.0+, optimización de `template.config.json`, scripts de ciclo de vida (`prepareBuild.ts`, empaquetado de `/app`), servidor Express local (`server-local/`) y configuración de linting/formatting.
-- **Ámbitos:** `template.config.json`, `prepareBuild.ts`, `server-local/`, `package.json`.
+- **Responsabilidad:** Compatibilidad con `@ricardogenaro99/scaffolder` v1.3.0+, optimización de `template.config.json` con tokens Mustache, scripts de ciclo de vida (`prepareBuild.ts`, empaquetado de `/app`), servidor Express local en puerto `3001` (`server-local/`), Titanium CI Runner (`.genaryth/ci/runner.mjs`) y configuración de linting/formatting.
+- **Ámbitos:** `template.config.json`, `prepareBuild.ts`, `server-local/`, `package.json`, `.genaryth/`.
 - **Modelo Recomendado:** **Gemini 3.8 Flash** (Automatización rápida, scripts Node y DX fluida).
 
 ### 6. 🧪 ARCHETYPE - QA & Cloud Performance
 
-- **Responsabilidad:** Configuración de suites de tests (unitarios de dominio con Jest, tests de síntesis de CDK assertions, pruebas de latencia de cold start y simulación local de eventos Lambda).
-- **Ámbitos:** `test/`, `infrastructure/test/`, auditorías de performance.
+- **Responsabilidad:** Configuración de suites de tests (unitarios de dominio con Jest, tests de síntesis de CDK assertions, pruebas de latencia de cold start y simulación local de eventos Lambda), Quality Gates locales y ejecución de arnés de sandboxing.
+- **Ámbitos:** `test/`, `infrastructure/test/`, `.genaryth/ci/`, auditorías de performance.
 - **Modelo Recomendado:** **Gemini 3.8 Flash** (Generación exhaustiva de casos de prueba y cobertura).
 
 ---
@@ -66,5 +66,10 @@ Para garantizar trazabilidad, prevenir colisiones de ramas y auditar cambios, ca
 
 1. **Un hilo, una rama temática:** Si un hilo trabaja en una mejora, debe crear una rama con prefijo claro: `feature/[hilo]-[descripcion]` o `fix/[hilo]-[descripcion]`.
 2. **Pull antes de Push:** `git pull --rebase origin master` antes de consolidar cambios.
-3. **Validación estricta antes de commit:** El hook de husky ejecuta `tsc` y `commitlint`. No bypass con `--no-verify`.
+3. **Validación estricta antes de commit:** Ejecutar obligatoriamente el Quality Gate local:
+   ```bash
+   pnpm run ci:local:fast   # Arnés de sandboxing + Typecheck + ESLint
+   pnpm run ci:local        # Runner completo con Formato, Tests y CDK Synth
+   ```
+   Los hooks de Husky ejecutan `tsc` y `commitlint`. Queda terminantemente prohibido hacer bypass con `--no-verify`.
 4. **Construcción de `/app` verificada:** Cualquier cambio en dependencias o tipos debe validar que `pnpm run build` genere un `/app/package.json` limpio y sin librerías excluidas de Lambda.

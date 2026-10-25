@@ -1,4 +1,4 @@
-# Infraestructura CDK (`arq-impl-cdk`)
+# Infraestructura CDK (`@genaryth/archetype-infra`)
 
 Workspace pnpm con la **app CDK** del servicio y una **biblioteca de constructores** (`Template*`) que estandariza naming, cifrado, retención y políticas de borrado por ambiente.
 
@@ -19,14 +19,19 @@ infrastructure/
 │   │   └── enum.ts                 # Stage, Region, RegionAbrev, AccountAbrev, TAG, ...
 │   ├── construct/
 │   │   ├── api/
-│   │   │   ├── api-gateway.construct.ts         # TemplateRestApi
-│   │   │   └── lambda-integration.construct.ts  # TemplateLambdaIntegration
-│   │   ├── database/table.construct.ts          # TemplateTable
-│   │   ├── lambda/lambda.construct.ts           # TemplateLambdaFunction
+│   │   │   ├── api-gateway.construct.ts         # TemplateRestApi (CORS + GatewayResponses 4xx/5xx)
+│   │   │   └── lambda-integration.construct.ts  # TemplateLambdaIntegration (scopePermissionToMethod: false)
+│   │   ├── cdn/cloudfront.construct.ts          # TemplateCloudFrontDistribution
+│   │   ├── database/
+│   │   │   ├── table.construct.ts               # TemplateTable (DynamoDB)
+│   │   │   └── aurora-serverless.construct.ts   # TemplateAuroraServerless (PostgreSQL v2)
+│   │   ├── lambda/lambda.construct.ts           # TemplateLambdaFunction (Node.js 22.x)
+│   │   ├── network/vpc.construct.ts             # TemplateVpc
 │   │   ├── orchestration/state-machine.construct.ts  # TemplateStateMachine
+│   │   ├── security/waf.construct.ts            # TemplateWafAcl
 │   │   ├── sm/secret.construct.ts               # TemplateSecret
 │   │   ├── ssm/ssm.construct.ts                 # TemplateStringParameter
-│   │   └── storage/bucket.construct.ts          # TemplateBucket
+│   │   └── storage/bucket.construct.ts          # TemplateBucket (S3)
 │   ├── interface/config.interface.ts            # ConfigByStage
 │   ├── module/task-manager/task-manager.infra.ts
 │   ├── util/config.util.ts                      # ConfigUtil.getCurrentStage / setTags
@@ -56,14 +61,15 @@ Todos aceptan las props nativas de CDK; los valores de abajo son **defaults** qu
 
 ### `TemplateRestApi` (`apigateway.RestApi`)
 
-| Aspecto          | Valor                                                                                                                                   |
-| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| Props propias    | `apiNameSuffix` (req.), `description` (req.)                                                                                            |
-| Nombre           | `${regionAbrev}${accountAbrev}APIC${apiNameSuffix}` → ej. `UE1DEVLAPICTSKMGR001`                                                        |
-| Stage            | `config.environments` (`desa` / `test` / `prod`)                                                                                        |
-| Auth por defecto | `authorizationType: IAM` **+** `apiKeyRequired: true` en cada método                                                                    |
-| CORS             | `allowOrigins: ALL`, `allowMethods: ALL`, `allowHeaders: DEFAULT`                                                                       |
-| Extras           | Crea **API Key** (`<nombre>-ApiKey`) y **Usage Plan** (`<nombre>-UsagePlan`) asociados al stage. Expuestos como `apiKey` y `usagePlan`. |
+| Aspecto           | Valor                                                                                                                                   |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| Props propias     | `apiNameSuffix` (req.), `description` (req.)                                                                                            |
+| Nombre            | `${regionAbrev}${accountAbrev}APIC${apiNameSuffix}` → ej. `UE1DEVLAPICTSKMGR001`                                                        |
+| Stage             | `config.environments` (`desa` / `test` / `prod`)                                                                                        |
+| Auth por defecto  | `authorizationType: IAM` **+** `apiKeyRequired: true` en cada método                                                                    |
+| CORS              | `allowOrigins: ALL`, `allowMethods: ALL`, `allowHeaders: DEFAULT`                                                                       |
+| Gateway Responses | Inyección automática de `DEFAULT_4XX` y `DEFAULT_5XX` con cabeceras `Access-Control-Allow-Origin: '*'` (`ARCH-002`)                     |
+| Extras            | Crea **API Key** (`<nombre>-ApiKey`) y **Usage Plan** (`<nombre>-UsagePlan`) asociados al stage. Expuestos como `apiKey` y `usagePlan`. |
 
 ### `TemplateLambdaIntegration` (`apigateway.LambdaIntegration`)
 
@@ -71,6 +77,7 @@ Todos aceptan las props nativas de CDK; los valores de abajo son **defaults** qu
 | ------------- | ----------------------------------------------------------------------------------------------------- |
 | Firma         | `new TemplateLambdaIntegration(fn, { action, statusCode? })`                                          |
 | Modo          | `proxy: false` (forzado)                                                                              |
+| Permisos IAM  | `allowTestInvoke: false`, `scopePermissionToMethod: false` (mitigación cuota 20 KB de Lambda Policy)  |
 | Request (VTL) | `{ "action": "<action>", "body", "pathParameters", "queryStringParameters", "headers" }`              |
 | Response      | Solo una integración de éxito (`statusCode`, default `200`) con plantilla `$input.path("$.payload")`. |
 
