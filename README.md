@@ -27,18 +27,23 @@ Incluye un dominio de ejemplo completo (`task-manager`: CRUD de tareas sobre Dyn
 
 ---
 
-## 🧰 Stack
+### 🧰 Topología Zero-Cost Serverless & Stack
 
-| Capa               | Tecnología                                                | Versión (según `package.json`)                          |
-| ------------------ | --------------------------------------------------------- | ------------------------------------------------------- |
-| Runtime            | Node.js                                                   | `>=22` (`.nvmrc` = `22`), Lambda `nodejs22.x`           |
-| Lenguaje           | TypeScript                                                | `^5.3`                                                  |
-| Framework          | NestJS (`@nestjs/common`, `@nestjs/core`)                 | `11.1.21` (solo `ApplicationContext`, sin HTTP adapter) |
-| Middlewares Lambda | `@middy/core`                                             | `4.5.5`                                                 |
-| IaC                | `aws-cdk-lib` / `aws-cdk` (CLI)                           | `^2.147.1` (rango declarado)                            |
-| SDK AWS            | `@aws-sdk/*` v3 (DynamoDB, S3, SSM, Secrets Manager, SFN) | `^3.609`                                                |
-| Servidor local     | Express                                                   | `^5.2`                                                  |
-| Gestor de paquetes | pnpm (workspaces)                                         | `packageManager: pnpm@11.14.0`                          |
+El arquetipo implementa la arquitectura **Zero-Cost Serverless Direct Connect** probada en producción en el ecosistema Genaryth: cómputo AWS Lambda Core sin VPC (acceso a internet directo a costo $0.00), base de datos PostgreSQL Serverless externa (Neon / Supabase con pooling nativo PgBouncer) y persistencia NoSQL / Object Storage con DynamoDB y Amazon S3.
+
+| Capa               | Tecnología                                | Versión / Característica                                    |
+| ------------------ | ----------------------------------------- | ----------------------------------------------------------- |
+| Runtime            | Node.js                                   | `>=22` (`.nvmrc` = `22`), Lambda `nodejs22.x`               |
+| Lenguaje           | TypeScript                                | `^5.5.2` (Strict Typecheck dual monorepo)                   |
+| Framework          | NestJS (`@nestjs/common`, `@nestjs/core`) | `11.1.21` (solo `ApplicationContext`, sin HTTP server)      |
+| ORM & Datos        | Prisma ORM (`@prisma/client`) & DynamoDB  | PostgreSQL Serverless (Neon/Supabase) + DynamoDB            |
+| Connection Pool    | PgBouncer nativo                          | `DATABASE_URL` (Pooler :6543) vs `DIRECT_URL` (DDL :5432)   |
+| Secretos & FinOps  | AWS SSM Parameter Store Standard          | Parámetros string a costo $0.00 (sin Secrets Manager $0.40) |
+| Middlewares Lambda | `@middy/core`                             | `4.5.5`                                                     |
+| IaC                | `aws-cdk-lib` / `aws-cdk` (CLI)           | `^2.182.0` (Stack CDK v2 modular)                           |
+| SDK AWS            | `@aws-sdk/*` v3 (DynamoDB, S3, SSM, SFN)  | `^3.609` (excluido del bundle Lambda `/app`)                |
+| Servidor local     | Express + Swagger                         | `^5.2` en puerto `3001` (ADR-013)                           |
+| Gestor de paquetes | pnpm (workspaces)                         | `packageManager: pnpm@11.14.0`                              |
 
 ---
 
@@ -131,6 +136,13 @@ pnpm run dev
 | `pnpm run infra:deploy`            | `pnpm run build` y despliega infraestructura y Lambdas en AWS (`cdk deploy`).                              |
 | `pnpm run infra:deploy:fast`       | `pnpm run build` y despliega con hotswap (`cdk deploy --hotswap`).                                         |
 | `pnpm run infra:destroy`           | `cdk destroy`.                                                                                             |
+| `pnpm run db:generate`             | Genera el cliente tipado de Prisma ORM (`prisma generate`).                                                |
+| `pnpm run db:push`                 | Sincroniza el esquema Prisma con la base de datos sin generar migraciones (`prisma db push`).              |
+| `pnpm run db:migrate`              | Crea y aplica migraciones DDL con Prisma CLI (`prisma migrate dev`).                                       |
+| `pnpm run db:deploy`               | Aplica migraciones pendientes en entornos de CI/CD (`prisma migrate deploy`).                              |
+| `pnpm run db:studio`               | Abre la consola interactiva Prisma Studio en el navegador.                                                 |
+| `pnpm run cd:local`                | Titanium CD Runner: despliegue local automatizado con hotswap (~15s) y sincronización de DB opcional.      |
+| `pnpm run cd:local:full`           | Titanium CD Runner: despliegue completo CloudFormation a AWS (`--full`).                                   |
 | `pnpm run lint` / `lint:fix`       | ESLint (flat config, `typescript-eslint` recommended + prettier).                                          |
 | `pnpm run format` / `format:check` | Prettier sobre `ts, js, json, md, yml, yaml`.                                                              |
 | `pnpm run ci:local`                | Titanium Local CI Runner: ejecuta secuencialmente Security Harness, Typecheck, CDK Synth, Linter y Format. |
@@ -170,12 +182,18 @@ Se leen desde `.env` en la raíz (gitignored) por `run-cdk.ts`, `infrastructure/
 | `AWS_REGION` / `AWS_DEFAULT_REGION`                                 | CDK, SDK local         | Región destino del despliegue y del SDK.                                                    |
 | `STAGE`                                                             | CDK                    | `DESA` (default) \| `TEST` \| `PROD`. Define naming, retención de logs y `RemovalPolicy`.   |
 | `TASKS_TABLE_NAME`                                                  | Lambda, servidor local | Tabla DynamoDB de tareas. En Lambda la inyecta CDK; en local debes copiarla del despliegue. |
+| `DATABASE_URL`                                                      | Prisma, Lambda, Local  | Cadena de conexión con PgBouncer (`-pooler` en puerto 6543) para runtime serverless.        |
+| `DIRECT_URL`                                                        | Prisma CLI, DDL        | Cadena de conexión directa (puerto 5432 sin pooler) para migraciones DDL y Prisma Studio.   |
+| `JWT_SECRET`                                                        | Auth, Lambda, SSM      | Secreto para firma y validación de tokens JWT (almacenado en SSM Standard $0.00).           |
 | `PORT`                                                              | Servidor local         | Puerto del servidor Express (default `3001` según segregación ADR-013).                     |
 
-Variables inyectadas automáticamente a toda Lambda creada con `TemplateLambdaFunction`: `TZ=America/Lima`, `STAGE`.
+Variables inyectadas automáticamente a toda Lambda creada con `TemplateLambdaFunction`: `TZ=America/Lima`, `STAGE`, `NODE_ENV`, `DATABASE_URL`, `DIRECT_URL`, `JWT_SECRET`.
 
 > [!TIP]
-> Cualquier variable de entorno de la Lambda cuyo valor empiece con `ssm:` (p. ej. `DB_URL=ssm:/ARCHETYPE/DESA/db-url`) se resuelve contra SSM Parameter Store en la primera invocación del contenedor (`ssmMiddleware`).
+> **FinOps Zero-Cost con SSM Parameter Store:**
+> El arquetipo erradica el cobro mensual recurrente de AWS Secrets Manager ($0.40/mes por cada secreto) sustituyéndolo por parámetros `ssm.StringParameter` Standard (`$config.ssmRootPath/jwt-secret`) a **costo $0.00**. La Lambda Core recibe permisos `grantRead` automáticos.
+>
+> Cualquier variable de entorno de la Lambda cuyo valor empiece con `ssm:` (p. ej. `DB_URL=ssm:/ARCHETYPE/DESA/db-url`) se resuelve dinámicamente contra SSM Parameter Store en la primera invocación del contenedor (`ssmMiddleware`).
 
 ---
 

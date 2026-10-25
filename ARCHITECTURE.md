@@ -8,24 +8,27 @@ Este documento describe **cómo funciona realmente** el arquetipo: capas, flujo 
 
 ```mermaid
 flowchart LR
-    Client["Cliente (SigV4 + x-api-key)"] --> APIGW["API Gateway REST<br/>integración no-proxy + VTL"]
-    APIGW -->|"{ action, body, pathParameters, ... }"| Lambda["Lambda App.handler<br/>(nodejs22.x, código = /app)"]
+    Client["Cliente (SigV4 / Bearer JWT + x-api-key)"] --> APIGW["API Gateway REST<br/>integración no-proxy + VTL + CORS 4xx/5xx"]
+    APIGW -->|"{ action, body, pathParameters, ... }"| Lambda["Lambda Core (nodejs22.x, /app)<br/>Direct Connect fuera de VPC ($0.00)"]
     Lambda --> Nest["NestJS ApplicationContext<br/>(singleton por contenedor)"]
-    Nest --> DDB[("DynamoDB<br/>tabla de tareas")]
-    Lambda -. "ssm:* env vars" .-> SSM[("SSM Parameter Store")]
+    Nest --> DDB[("DynamoDB<br/>NoSQL persistencia")]
+    Nest --> PG[("PostgreSQL Serverless<br/>Neon / Supabase con PgBouncer")]
+    Nest --> S3[("Amazon S3<br/>Storage Assets")]
+    Lambda -. "SSM Standard ($0.00)" .-> SSM[("AWS SSM Parameter Store<br/>/ARCHETYPE/STAGE/jwt-secret")]
 ```
 
 Piezas principales:
 
-| Pieza                     | Ubicación                                              | Responsabilidad                                                        |
-| ------------------------- | ------------------------------------------------------ | ---------------------------------------------------------------------- |
-| Handler Lambda            | `src/task-manager/infrastructure/bootstrap/App.ts`     | Punto de entrada; arma el pipeline middy.                              |
-| Wrapper instrumentado     | `src/common/core/lambda-bootstrap.helper.ts`           | Envuelve el handler en `AsyncLocalStorage` y aplica los middlewares.   |
-| Middlewares               | `src/common/core/*.middleware.ts`                      | Logging de contexto, resolución SSM, normalización y **despacho**.     |
-| Contexto NestJS           | `bootstrap/helpers/AppContextHelper.ts`                | Crea una vez el `ApplicationContext` (DI) y lo reutiliza.              |
-| Resolución de controlador | `bootstrap/HandlerCore.ts`                             | Devuelve el `TaskController` si tiene un método llamado como `action`. |
-| Dominio de ejemplo        | `src/task-manager/{domain,application,infrastructure}` | CRUD de tareas.                                                        |
-| Infraestructura           | `infrastructure/`                                      | Stack CDK + constructores `Template*`.                                 |
+| Pieza                     | Ubicación                                              | Responsabilidad                                                           |
+| ------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------- |
+| Handler Lambda            | `src/task-manager/infrastructure/bootstrap/App.ts`     | Punto de entrada; arma el pipeline middy.                                 |
+| Wrapper instrumentado     | `src/common/core/lambda-bootstrap.helper.ts`           | Envuelve el handler en `AsyncLocalStorage` y aplica los middlewares.      |
+| Middlewares               | `src/common/core/*.middleware.ts`                      | Logging de contexto, resolución SSM, normalización y **despacho**.        |
+| Contexto NestJS           | `bootstrap/helpers/AppContextHelper.ts`                | Crea una vez el `ApplicationContext` (DI) y lo reutiliza.                 |
+| ORM & Datos               | `src/common/infrastructure/prisma/`                    | `PrismaService` stateless (dual pooling: `DATABASE_URL` vs `DIRECT_URL`). |
+| Resolución de controlador | `bootstrap/HandlerCore.ts`                             | Devuelve el `TaskController` si tiene un método llamado como `action`.    |
+| Dominio de ejemplo        | `src/task-manager/{domain,application,infrastructure}` | CRUD de tareas sobre DynamoDB / PostgreSQL.                               |
+| Infraestructura           | `infrastructure/`                                      | Stack CDK + constructores `Template*` (Zero-Cost Serverless).             |
 
 ---
 
@@ -126,15 +129,19 @@ Solo el origen **API Gateway** tiene despacho automático a controlador en el `a
 
 ## 4. Decisiones de diseño
 
-| Decisión                                                                   | Motivo                                                                                    | Trade-off                                                                                 |
-| -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| **`NestFactory.createApplicationContext`** (sin Express/Fastify en Lambda) | Menor peso y arranque; solo se usa la DI de Nest.                                         | No hay decoradores HTTP (`@Get`, `@Body`, pipes, guards); el routing lo hace API Gateway. |
-| **Contexto singleton por contenedor** (`AppContextHelper`)                 | Las invocaciones _warm_ reutilizan el grafo de DI; solo el _cold start_ paga la creación. | Estado en memoria compartido entre invocaciones del mismo contenedor.                     |
-| **Routing por `action`** inyectada en VTL                                  | Una Lambda por dominio en vez de una por endpoint; menos recursos.                        | La VTL y el mapeo de errores viven en CDK, fuera del código de negocio.                   |
-| **Integración no-proxy**                                                   | El handler recibe un contrato propio y estable.                                           | Hay que declarar respuestas de error explícitamente (pendiente).                          |
-| **Un único asset `/app`** para todas las Lambdas                           | Build simple y un solo `package.json` de runtime.                                         | Cada Lambda carga todo el código y dependencias del servicio.                             |
-| **SDK v3 excluido de `app/`**                                              | El runtime `nodejs22.x` ya lo incluye; paquete más liviano.                               | La versión del SDK en Lambda es la del runtime, no la del lockfile.                       |
-| **Constructores `Template*` obligatorios**                                 | Naming, cifrado y retención consistentes.                                                 | Hay que extender la biblioteca cuando se necesita un recurso nuevo.                       |
+| Decisión                                                                   | Motivo                                                                                                                                    | Trade-off                                                                                 |
+| -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| **`NestFactory.createApplicationContext`** (sin Express/Fastify en Lambda) | Menor peso y arranque; solo se usa la DI de Nest.                                                                                         | No hay decoradores HTTP (`@Get`, `@Body`, pipes, guards); el routing lo hace API Gateway. |
+| **Topología Serverless Direct Connect fuera de VPC**                       | Elimina costos de NAT Gateway ($32+/mes) y demoras de cold start ENI. Conexión directa a PostgreSQL Serverless externo (Neon / Supabase). | El acceso a recursos cloud debe asegurarse vía TLS y credenciales robustas.               |
+| **Prisma Dual Connection Pooling (`DATABASE_URL` vs `DIRECT_URL`)**        | Runtime Lambda usa PgBouncer pooler (puerto 6543) evitando saturar conexiones; DDL usa conexión directa (puerto 5432).                    | Se requieren dos cadenas de conexión en el entorno.                                       |
+| **Bootstrap Stateless sin DDL en caliente**                                | `onModuleInit()` solo hace `$connect()`; cero `CREATE TABLE` en runtime para arranque rápido y seguro.                                    | Las migraciones DDL se delegan a los pipelines CI/CD (`prisma db push / migrate`).        |
+| **SSM Parameter Store Standard en lugar de Secrets Manager**               | Parámetros string a costo $0.00/mes frente a los $0.40/mes por secreto de Secrets Manager.                                                | No incluye rotación automática gestionada de credenciales.                                |
+| **Contexto singleton por contenedor** (`AppContextHelper`)                 | Las invocaciones _warm_ reutilizan el grafo de DI; solo el _cold start_ paga la creación.                                                 | Estado en memoria compartido entre invocaciones del mismo contenedor.                     |
+| **Routing por `action`** inyectada en VTL                                  | Una Lambda por dominio en vez de una por endpoint; menos recursos.                                                                        | La VTL y el mapeo de errores viven en CDK, fuera del código de negocio.                   |
+| **Integración no-proxy con Gateway Responses**                             | El handler recibe un contrato propio; errores 4xx/5xx perimetrales devuelven CORS universal (`ARCH-002`).                                 | Hay que declarar respuestas de error explícitamente en CDK.                               |
+| **Un único asset `/app`** para todas las Lambdas                           | Build simple y un solo `package.json` de runtime.                                                                                         | Cada Lambda carga todo el código y dependencias del servicio.                             |
+| **SDK v3 excluido de `app/`**                                              | El runtime `nodejs22.x` ya lo incluye; paquete más liviano.                                                                               | La versión del SDK en Lambda es la del runtime, no la del lockfile.                       |
+| **Constructores `Template*` obligatorios**                                 | Naming, cifrado y retención consistentes.                                                                                                 | Hay que extender la biblioteca cuando se necesita un recurso nuevo.                       |
 
 ---
 

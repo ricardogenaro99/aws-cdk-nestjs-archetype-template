@@ -44,13 +44,20 @@ Antes de realizar modificaciones estructurales, consulta la documentación viva:
 2. **Serverless Ultraliviano (NestJS sin HTTP Server):**
    - **PROHIBIDO** inicializar adaptadores HTTP como Express o Fastify en el runtime de Lambda. Se debe utilizar únicamente `NestFactory.createApplicationContext(AppModule)` mediante el patrón singleton de `AppContextHelper`.
    - El enrutamiento se delega a **API Gateway REST** (no-proxy + VTL) que mapea el método y recurso a un parámetro `{ action, ... }`.
-3. **Gobierno Cloud y Constructores `Template*`:**
+3. **Persistencia Dual & Topología Zero-Cost Serverless:**
+   - Cómputo Lambda Core fuera de VPC (acceso directo a internet a costo $0.00 sin NAT Gateways ni ENI delay).
+   - Base de datos dual: Contenedor Docker centralizado local (`localhost:5432`) y PostgreSQL Serverless Cloud (Neon / Supabase con PgBouncer).
+   - Separación de connection pooling en Prisma: `DATABASE_URL` (puerto 6543 con PgBouncer para runtime serverless) vs `DIRECT_URL` (puerto 5432 sin pooler para Prisma CLI / DDL).
+   - **PROHIBIDO** ejecutar migraciones DDL en caliente (`CREATE TABLE`, `CREATE TYPE`, `ensureSchemaAndSeed`) en el bootstrap de la Lambda (`onModuleInit`); el DDL pertenece exclusivamente a los pipelines de despliegue (`prisma db push / migrate`).
+   - Gestión de secretos vía AWS SSM Parameter Store Standard (`ssm.StringParameter` a costo $0.00/mes), erradicando el uso de AWS Secrets Manager ($0.40/mes).
+4. **Gobierno Cloud y Constructores `Template*`:**
    - Todo recurso CDK debe instanciarse usando la biblioteca personalizada en `infrastructure/lib/construct/` (`TemplateRestApi`, `TemplateLambdaFunction`, `TemplateTable`, etc.).
    - Respetar el Estándar de Nomenclatura Cloud AWS (Secuencial 001) y la convención de tags obligatorios (`Name`, `Entorno`, `Ambiente`, `Proyecto`, `Responsable`).
-4. **Empaquetado de Lambda (`/app`):**
+   - Resolver posibles colisiones en CloudFormation por recursos retenidos con `RemovalPolicy.RETAIN` (S3 Buckets o DynamoDB en PROD) parametrizando sufijos únicos o limpieza previa.
+5. **Empaquetado de Lambda (`/app`):**
    - El runtime es `nodejs22.x`.
    - Las librerías de `@aws-sdk/*` **NO** se incluyen en el bundle de producción `/app/node_modules`, ya que están presentes en el runtime nativo de AWS Lambda. `prepareBuild.ts` se encarga de excluirlas al generar `/app/package.json`.
-5. **Tipado Estricto de TypeScript:**
+6. **Tipado Estricto de TypeScript:**
    - No usar `any` salvo en límites externos de serialización justificados.
    - Correr `pnpm run typecheck` antes de dar por finalizada cualquier tarea.
 
